@@ -37,6 +37,17 @@ st.caption("Automated SAS-to-dbt migration powered by LLM • LangGraph orchestr
 with st.sidebar:
     st.header("Configuration")
 
+    st.subheader("API Key")
+    api_key_input = st.text_input(
+        "OpenAI API Key",
+        type="password",
+        placeholder="sk-...",
+        help="Not stored anywhere. Lives only in your browser session.",
+    )
+    if api_key_input:
+        import os
+        os.environ["OPENAI_API_KEY"] = api_key_input
+
     st.subheader("dbt Conventions")
     target_dialect = st.selectbox("Target Dialect", ["postgres_redshift", "redshift", "postgres"], index=0)
     mat_staging = st.selectbox("Staging Materialization", ["view", "table", "ephemeral"], index=0)
@@ -71,10 +82,17 @@ if sas_code:
 if mapping_raw:
     render_mapping_preview(mapping_raw)
 
-can_run = sas_code is not None and mapping_raw is not None
+can_run = sas_code is not None and mapping_raw is not None and bool(api_key_input)
 
 if not can_run:
-    st.info("Upload both a SAS script and a column mapping file to begin.")
+    missing = []
+    if not sas_code:
+        missing.append("SAS script")
+    if not mapping_raw:
+        missing.append("column mapping")
+    if not api_key_input:
+        missing.append("API key (sidebar)")
+    st.info(f"Missing: {', '.join(missing)}")
 
 col_run, col_status = st.columns([1, 4])
 with col_run:
