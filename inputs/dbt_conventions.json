@@ -1,0 +1,17 @@
+{
+  "materialization_staging": "view",
+  "materialization_intermediate": "table",
+  "materialization_marts": "table",
+  "prefix_staging": "stg_",
+  "prefix_intermediate": "int_",
+  "prefix_fact": "fct_",
+  "prefix_dimension": "dim_",
+  "target_dialect": "postgres_redshift",
+  "max_joins_per_model": 8,
+  "notes": [
+    "Break large joins (30+ tables) into layered intermediate models",
+    "Use CTEs within models for readability",
+    "Flag ODS/PROC REPORT/email as not convertible",
+    "Flag file I/O (INFILE, x commands) as ingestion - not dbt scope"
+  ]
+}
