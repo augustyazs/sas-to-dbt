@@ -1,15 +1,27 @@
 import json
 import os
 from openai import OpenAI
-from config.settings import OPENAI_API_KEY, OPENAI_MODEL, INPUT_COST_PER_M, OUTPUT_COST_PER_M
+from config.settings import OPENAI_MODEL, INPUT_COST_PER_M, OUTPUT_COST_PER_M
 
-api_key = OPENAI_API_KEY or os.environ.get("OPENAI_API_KEY")
-if not api_key:
-    raise RuntimeError("OPENAI_API_KEY not found.")
-
-client = OpenAI(api_key=api_key)
-
+_client = None
 _usage_log = []
+
+
+def _get_client() -> OpenAI:
+    """Lazy-init OpenAI client. Picks up key set at runtime."""
+    global _client
+    key = os.environ.get("OPENAI_API_KEY", "")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY not set. Enter it in the sidebar.")
+    if _client is None or _client.api_key != key:
+        _client = OpenAI(api_key=key)
+    return _client
+
+
+def reset_usage():
+    """Clear usage log between runs."""
+    global _usage_log
+    _usage_log = []
 
 
 def get_usage_log() -> list[dict]:
@@ -25,6 +37,7 @@ def get_total_cost() -> dict:
 
 def call_llm(system_prompt: str, user_prompt: str, step_name: str = "") -> dict:
     """Send prompt to OpenAI, return parsed JSON."""
+    client = _get_client()
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
