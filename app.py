@@ -16,23 +16,35 @@ from ui.runner import run_pipeline
 
 
 st.set_page_config(
-    page_title="SAS → dbt Converter",
-    page_icon="🔄",
+    page_title="HPP Capabilities — SAS to dbt",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 st.markdown("""
 <style>
-    .block-container { padding-top: 2rem; }
+    .block-container { padding-top: 1rem; }
     .stMetric { background: #1e293b; padding: 12px; border-radius: 8px; }
     div[data-testid="stExpander"] { border: 1px solid #334155; border-radius: 8px; }
+    .zs-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+    .zs-header img { height: 40px; }
+    .zs-header h1 { font-size: 28px; font-weight: 700; margin: 0; }
+    .zs-header p { font-size: 14px; color: #888; margin: 0; }
 </style>
 """, unsafe_allow_html=True)
 
+ZS_LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/ZS_logo.svg/1200px-ZS_logo.svg.png"
 
-st.title("🔄 SAS → dbt Code Gen Agent")
-st.caption("Automated SAS-to-dbt migration powered by LLM • LangGraph orchestration")
+st.markdown(f"""
+<div class="zs-header">
+    <img src="{ZS_LOGO_URL}" alt="ZS Logo">
+    <div>
+        <h1>HPP Capabilities</h1>
+        <p>SAS → dbt Automated Code Migration • LLM-Powered Agentic Pipeline</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("Configuration")
