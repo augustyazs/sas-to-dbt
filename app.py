@@ -1,5 +1,7 @@
 import json
 import streamlit as st
+import base64
+from pathlib import Path
 from models.schemas import ColumnMapping, DbtConventions
 from ui.components import (
     render_file_uploaders,
@@ -13,6 +15,7 @@ from ui.components import (
     render_cost_summary,
 )
 from ui.runner import run_pipeline
+
 
 
 st.set_page_config(
@@ -34,7 +37,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-ZS_LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/ZS_logo.svg/1200px-ZS_logo.svg.png"
+logo_path = Path(__file__).parent / "assets" / "zs_logo.png"
+if logo_path.exists():
+    logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
+    ZS_LOGO_URL = f"data:image/png;base64,{logo_b64}"
 
 st.markdown(f"""
 <div class="zs-header">
