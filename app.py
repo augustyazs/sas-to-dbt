@@ -37,7 +37,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-logo_path = Path(__file__).parent / "assets" / "zs_logo.png"
+logo_path = Path(__file__).parent / "assests" / "zs_logo.png"
 if logo_path.exists():
     logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
     ZS_LOGO_URL = f"data:image/png;base64,{logo_b64}"
