@@ -29,7 +29,7 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
     }
 
     completed_steps = []
-    final_state = None
+    final_state = {}
 
     for step_name in STEP_ORDER:
         step_containers[step_name].info(f"⏳ {STEP_LABELS[step_name]} running...")
@@ -41,7 +41,7 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
                     continue
 
                 completed_steps.append(node_name)
-                final_state = node_output
+                final_state.update(node_output)
 
                 display_name = node_name
                 if node_name == "reviewer" and node_output.get("review_count"):
@@ -54,7 +54,7 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
                         step_containers[s].empty()
                         step_containers[s].info(f"⬜ {STEP_LABELS[s]} pending")
 
-        if final_state is None:
+        if not final_state:
             final_state = graph.invoke(initial_state)
             for s in STEP_ORDER:
                 step_containers[s].success(f"✅ {STEP_LABELS[s]} done")
