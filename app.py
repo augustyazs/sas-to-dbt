@@ -64,7 +64,7 @@ st.markdown(f"""
     <img src="{ZS_LOGO_URL}" alt="ZS Logo">
     <div>
         <h1>HPP Capabilities</h1>
-        <p>SAS → dbt Automated Code Migration • LLM-Powered Agentic Pipeline</p>
+        <p>SAS to dbt Agentic Code Migration</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
