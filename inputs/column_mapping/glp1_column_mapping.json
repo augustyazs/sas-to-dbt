@@ -1,0 +1,98 @@
+[
+  {
+    "source_schema": "dw",
+    "source_table": "pharmacy_claims",
+    "source_column": "member_id",
+    "target_schema": "raw_claims",
+    "target_table": "rx_claims",
+    "target_column": "mbr_id"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "pharmacy_claims",
+    "source_column": "ndc",
+    "target_schema": "raw_claims",
+    "target_table": "rx_claims",
+    "target_column": "ndc_code"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "pharmacy_claims",
+    "source_column": "fill_date",
+    "target_schema": "raw_claims",
+    "target_table": "rx_claims",
+    "target_column": "fill_dt"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "pharmacy_claims",
+    "source_column": "drug_name",
+    "target_schema": "raw_claims",
+    "target_table": "rx_claims",
+    "target_column": "drug_nm"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "pharmacy_claims",
+    "source_column": "days_supply",
+    "target_schema": "raw_claims",
+    "target_table": "rx_claims",
+    "target_column": "days_supply"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "pharmacy_claims",
+    "source_column": "quantity",
+    "target_schema": "raw_claims",
+    "target_table": "rx_claims",
+    "target_column": "qty"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "medical_claims",
+    "source_column": "member_id",
+    "target_schema": "raw_claims",
+    "target_table": "med_claims",
+    "target_column": "mbr_id"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "medical_claims",
+    "source_column": "dx_code",
+    "target_schema": "raw_claims",
+    "target_table": "med_claims",
+    "target_column": "diag_cd"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "medical_claims",
+    "source_column": "service_date",
+    "target_schema": "raw_claims",
+    "target_table": "med_claims",
+    "target_column": "svc_dt"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "medical_claims",
+    "source_column": "procedure_code",
+    "target_schema": "raw_claims",
+    "target_table": "med_claims",
+    "target_column": "proc_cd"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "medical_claims",
+    "source_column": "provider_id",
+    "target_schema": "raw_claims",
+    "target_table": "med_claims",
+    "target_column": "prov_id"
+  },
+  {
+    "source_schema": "dw",
+    "source_table": "medical_claims",
+    "source_column": "claim_id",
+    "target_schema": "raw_claims",
+    "target_table": "med_claims",
+    "target_column": "clm_id"
+  }
+]
