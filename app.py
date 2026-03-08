@@ -29,7 +29,16 @@ st.set_page_config(
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
-    .stMetric { background: #1e293b; padding: 12px; border-radius: 8px; }
+    div[data-testid="stMetric"] {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;}
+    div[data-testid="stMetric"] label {
+        color: #333 !important;}
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        color: #1a1a1a !important;
+        font-weight: 700;}
     div[data-testid="stExpander"] { border: 1px solid #334155; border-radius: 8px; }
     .zs-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
     .zs-header img { height: 40px; }
