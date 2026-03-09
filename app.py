@@ -1,8 +1,7 @@
 import json
 import os
-import base64
-from pathlib import Path
 import streamlit as st
+import base64
 from pathlib import Path
 from models.schemas import ColumnMapping, DbtConventions
 from ui.components import (
@@ -16,6 +15,7 @@ from ui.components import (
     render_cost_summary,
 )
 from ui.runner import run_pipeline
+from utils.logger import get_current_run_logs
 from config.settings import INPUTS_DIR
 
 
@@ -29,16 +29,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
-    div[data-testid="stMetric"] {
-        background: #f8f9fa;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;}
-    div[data-testid="stMetric"] label {
-        color: #333 !important;}
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #1a1a1a !important;
-        font-weight: 700;}
+    .stMetric { background: #1e293b; padding: 12px; border-radius: 8px; }
     div[data-testid="stExpander"] { border: 1px solid #334155; border-radius: 8px; }
     .zs-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
     .zs-header img { height: 40px; }
@@ -64,7 +55,7 @@ st.markdown(f"""
     <img src="{ZS_LOGO_URL}" alt="ZS Logo">
     <div>
         <h1>HPP Capabilities</h1>
-        <p>SAS to dbt Agentic Code Migration</p>
+        <p>SAS → dbt Automated Code Migration • LLM-Powered Agentic Pipeline</p>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -98,7 +89,7 @@ with st.sidebar:
 
 # === HELPER: scan input folders ===
 SAS_DIR = INPUTS_DIR / "sas_scripts"
-MAPPING_DIR = INPUTS_DIR
+MAPPING_DIR = INPUTS_DIR / "column_mapping"
 
 def get_sas_files():
     if SAS_DIR.exists():
@@ -107,7 +98,7 @@ def get_sas_files():
 
 def get_mapping_files():
     if MAPPING_DIR.exists():
-        return sorted([f.name for f in MAPPING_DIR.glob("*.json") if "convention" not in f.name.lower()])
+        return sorted([f.name for f in MAPPING_DIR.glob("*.json")] + [f.name for f in MAPPING_DIR.glob("*.csv")])
     return []
 
 
@@ -117,7 +108,7 @@ st.header("📂 Inputs")
 sas_code = None
 mapping_raw = None
 
-tab_select, tab_upload = st.tabs(["Select from repo", "Upload Files"])
+tab_select, tab_upload = st.tabs(["Select from Library", "Upload Files"])
 
 with tab_select:
     col1, col2 = st.columns(2)
@@ -125,7 +116,7 @@ with tab_select:
     with col1:
         sas_files = get_sas_files()
         if sas_files:
-            selected_sas = st.selectbox("Select SAS Script from github Repo - Inputs Folder", ["-- select --"] + sas_files, key="sas_select")
+            selected_sas = st.selectbox("Select SAS Script", ["-- select --"] + sas_files, key="sas_select")
             if selected_sas != "-- select --":
                 sas_path = SAS_DIR / selected_sas
                 for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
@@ -267,23 +258,19 @@ if run_clicked and can_run:
     st.divider()
     st.header("📝 Pipeline Logs")
 
-    log_dir = Path("logs")
-    if log_dir.exists():
-        log_files = sorted(log_dir.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
-        if log_files:
-            log_tabs = st.tabs([f.stem for f in log_files[:10]])
-            for tab, log_file in zip(log_tabs, log_files[:10]):
-                with tab:
-                    try:
-                        log_content = json.loads(log_file.read_text(encoding="utf-8"))
-                        st.markdown(f'<div class="log-box">{json.dumps(log_content, indent=2)}</div>', unsafe_allow_html=True)
-                    except Exception:
-                        raw = log_file.read_text(encoding="utf-8")
-                        st.markdown(f'<div class="log-box">{raw[:5000]}</div>', unsafe_allow_html=True)
-        else:
-            st.info("No logs generated yet.")
+    log_files = get_current_run_logs()
+    if log_files:
+        log_tabs = st.tabs([f.stem for f in log_files])
+        for tab, log_file in zip(log_tabs, log_files):
+            with tab:
+                try:
+                    log_content = json.loads(log_file.read_text(encoding="utf-8"))
+                    st.markdown(f'<div class="log-box">{json.dumps(log_content, indent=2)}</div>', unsafe_allow_html=True)
+                except Exception:
+                    raw = log_file.read_text(encoding="utf-8")
+                    st.markdown(f'<div class="log-box">{raw[:5000]}</div>', unsafe_allow_html=True)
     else:
-        st.info("Logs directory not found.")
+        st.info("No logs generated for this run.")
 
     # === GENERATED FILES ===
     st.divider()
@@ -303,7 +290,3 @@ if run_clicked and can_run:
         st.error(f"❌ Pipeline halted — {final_state.get('error', 'See step details')}")
     else:
         st.warning(f"⚠️ Pipeline ended — Status: {final_status}")
-
-
-
-
