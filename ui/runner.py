@@ -29,10 +29,10 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
     }
 
     completed_steps = []
-    final_state = {}
+    final_state = None
 
     for step_name in STEP_ORDER:
-        step_containers[step_name].info(f"⏳ {STEP_LABELS[step_name]} running...")
+        step_containers[step_name].markdown(f"⬜ **{STEP_LABELS[step_name]}** — not started")
 
     try:
         for event in graph.stream(initial_state, stream_mode="updates"):
@@ -40,8 +40,11 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
                 if node_name == "__end__":
                     continue
 
+                if node_name not in completed_steps:
+                    step_containers[node_name].info(f"⏳ **{STEP_LABELS.get(node_name, node_name)}** — running...")
+
                 completed_steps.append(node_name)
-                final_state.update(node_output)
+                final_state = node_output
 
                 display_name = node_name
                 if node_name == "reviewer" and node_output.get("review_count"):
@@ -49,15 +52,11 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
 
                 _update_step_ui(node_name, display_name, node_output, step_containers)
 
-                for s in STEP_ORDER:
-                    if s not in completed_steps and s != node_name:
-                        step_containers[s].empty()
-                        step_containers[s].info(f"⬜ {STEP_LABELS[s]} pending")
-
-        if not final_state:
+        if final_state is None:
             final_state = graph.invoke(initial_state)
             for s in STEP_ORDER:
-                step_containers[s].success(f"✅ {STEP_LABELS[s]} done")
+                if s not in completed_steps:
+                    step_containers[s].success(f"✅ {STEP_LABELS[s]} done")
 
     except Exception as e:
         status_container.error(f"Pipeline error: {str(e)}")
