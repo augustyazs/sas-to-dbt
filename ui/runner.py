@@ -2,6 +2,7 @@ import streamlit as st
 from models.schemas import ColumnMapping, DbtConventions
 from graph.builder import build_graph
 from tools.llm_client import get_usage_log, get_total_cost, reset_usage
+from utils.logger import reset_logs, get_current_run_logs
 
 
 STEP_ORDER = ["analyzer", "resolver", "generator", "reviewer", "write_output"]
@@ -18,6 +19,7 @@ STEP_LABELS = {
 def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtConventions, status_container, step_containers: dict):
     """Run the LangGraph pipeline with live Streamlit status updates."""
     reset_usage()
+    reset_logs()
     graph = build_graph()
 
     initial_state = {
