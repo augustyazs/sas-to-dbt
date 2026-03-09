@@ -36,6 +36,9 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
     for step_name in STEP_ORDER:
         step_containers[step_name].markdown(f"⬜ **{STEP_LABELS[step_name]}** — not started")
 
+    # Mark first step as running immediately
+    step_containers[STEP_ORDER[0]].info(f"⏳ **{STEP_LABELS[STEP_ORDER[0]]}** — running...")
+
     try:
         for event in graph.stream(initial_state, stream_mode="updates"):
             for node_name, node_output in event.items():
