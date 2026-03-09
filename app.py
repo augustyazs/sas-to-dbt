@@ -117,7 +117,7 @@ st.header("📂 Inputs")
 sas_code = None
 mapping_raw = None
 
-tab_select, tab_upload = st.tabs(["Select from Library", "Upload Files"])
+tab_select, tab_upload = st.tabs(["Select from repo", "Upload Files"])
 
 with tab_select:
     col1, col2 = st.columns(2)
@@ -125,7 +125,7 @@ with tab_select:
     with col1:
         sas_files = get_sas_files()
         if sas_files:
-            selected_sas = st.selectbox("Select SAS Script", ["-- select --"] + sas_files, key="sas_select")
+            selected_sas = st.selectbox("Select SAS Script from github Repo - Inputs Folder", ["-- select --"] + sas_files, key="sas_select")
             if selected_sas != "-- select --":
                 sas_path = SAS_DIR / selected_sas
                 for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
