@@ -42,11 +42,20 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
                 if node_name == "__end__":
                     continue
 
-                if node_name not in completed_steps:
-                    step_containers[node_name].info(f"⏳ **{STEP_LABELS.get(node_name, node_name)}** — running...")
-
                 completed_steps.append(node_name)
                 final_state = node_output
+
+                display_name = node_name
+                if node_name == "reviewer" and node_output.get("review_count"):
+                    display_name = f"reviewer (attempt {node_output['review_count']})"
+
+                _update_step_ui(node_name, display_name, node_output, step_containers)
+
+                # Mark the next pending step as running
+                for s in STEP_ORDER:
+                    if s not in completed_steps:
+                        step_containers[s].info(f"⏳ **{STEP_LABELS[s]}** — running...")
+                        break
 
                 display_name = node_name
                 if node_name == "reviewer" and node_output.get("review_count"):
