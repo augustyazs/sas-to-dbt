@@ -111,7 +111,7 @@ with st.sidebar:
     st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
 
     st.divider()
-    st.subheader("Output Destination")
+    st.subheader("Output")
 
     output_platform = st.selectbox(
         "Platform",
