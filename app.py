@@ -126,6 +126,7 @@ with st.sidebar:
     )
 
     st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
+    
     st.divider()
     st.subheader("About")
     st.markdown("""
