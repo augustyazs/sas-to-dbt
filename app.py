@@ -88,6 +88,29 @@ with st.sidebar:
         os.environ["OPENAI_API_KEY"] = api_key_input
 
     st.divider()
+    st.subheader("Source Control")
+
+    source_platform = st.selectbox(
+        "Platform",
+        ["GitHub", "Bitbucket"],
+        key="source_platform"
+    )
+
+    repo_name = st.selectbox(
+        "Repository",
+        ["hpp-analytics/sas-to-dbt", "hpp-analytics/dx-data-pipeline", "hpp-analytics/rx-etl"],
+        key="repo_name"
+    )
+
+    folder_name = st.selectbox(
+        "Input Folder",
+        ["sas_scripts_input_20260301", "sas_scripts_input_20260215", "sas_scripts_input_20260128"],
+        key="folder_name"
+    )
+
+    st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
+
+    st.divider()
     st.subheader("About")
     st.markdown("""
     **Pipeline Steps:**
