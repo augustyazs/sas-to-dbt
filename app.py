@@ -111,6 +111,22 @@ with st.sidebar:
     st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
 
     st.divider()
+    st.subheader("Output Repository")
+
+    repo_name = st.selectbox(
+        "Repository",
+        ["hpp-analytics/sas-to-dbt", "hpp-analytics/dx-data-pipeline", "hpp-analytics/rx-etl"],
+        key="repo_name"
+    )
+
+    folder_name = st.selectbox(
+        "Output dbt Folder",
+        ["dbt_output_20260301", "dbt_output_20260215", "dbt_output_20260128"],
+        key="folder_name"
+    )
+
+    st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
+    st.divider()
     st.subheader("About")
     st.markdown("""
     **Pipeline Steps:**
