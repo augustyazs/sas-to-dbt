@@ -111,21 +111,27 @@ with st.sidebar:
     st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
 
     st.divider()
-    st.subheader("Output Repository")
+    st.subheader("Output Destination")
 
-    repo_name = st.selectbox(
+    output_platform = st.selectbox(
+        "Platform",
+        ["GitHub", "Bitbucket"],
+        key="output_platform"
+    )
+
+    output_repo = st.selectbox(
         "Repository",
-        ["hpp-analytics/sas-to-dbt", "hpp-analytics/dx-data-pipeline", "hpp-analytics/rx-etl"],
-        key="repo_name"
+        ["hpp-analytics/dbt-pharmacy-models", "hpp-analytics/dbt-rx-warehouse", "hpp-analytics/sas-to-dbt"],
+        key="output_repo"
     )
 
-    folder_name = st.selectbox(
-        "Output dbt Folder",
-        ["dbt_output_20260301", "dbt_output_20260215", "dbt_output_20260128"],
-        key="folder_name"
+    output_branch = st.selectbox(
+        "Branch",
+        ["feature/sas-migration", "develop", "main"],
+        key="output_branch"
     )
 
-    st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
+    st.caption(f"📦 {output_platform} / {output_repo} / {output_branch}")
     
     st.divider()
     st.subheader("About")
