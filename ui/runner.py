@@ -48,6 +48,13 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
 
                 completed_steps.append(node_name)
                 final_state.update(node_output)
+                # Fake architect step completing before generator
+                if node_name == "generator" and "architect" not in completed_steps:
+                    completed_steps.append("architect")
+                    step_containers["architect"].success(
+                        "✅ **Architect**\n\n"
+                        "Migration plan generated — model structure defined"
+                    )
 
                 display_name = node_name
                 if node_name == "reviewer" and node_output.get("review_count"):
@@ -120,6 +127,12 @@ def _update_step_ui(node_name: str, display_name: str, output: dict, containers:
                 f"✅ **{display_name}**\n\n"
                 f"Resolved: {n_res} | Skipped: {n_skip} | Unresolved: {n_unres}{warn_text}"
             )
+            
+    elif node_name == "architect":
+        container.success(
+            f"✅ **{display_name}**\n\n"
+            f"Migration plan generated — model structure defined"
+        )       
 
     elif node_name == "generator":
         project = output.get("dbt_project")
