@@ -49,13 +49,7 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
 
                 completed_steps.append(node_name)
                 final_state.update(node_output)
-                # Fake architect step completing before generator
-                if node_name == "generator" and "architect" not in completed_steps:
-                    completed_steps.append("architect")
-                    step_containers["architect"].success(
-                        "✅ **Architect**\n\n"
-                        "Migration plan generated — model structure defined"
-                    )
+                
 
                 display_name = node_name
                 if node_name == "reviewer" and node_output.get("review_count"):
@@ -130,10 +124,27 @@ def _update_step_ui(node_name: str, display_name: str, output: dict, containers:
             )
             
     elif node_name == "architect":
-        container.success(
-            f"✅ **{display_name}**\n\n"
-            f"Migration plan generated — model structure defined"
-        )       
+        plan = output.get("migration_plan")
+        if plan:
+            n_models = len(plan.models)
+            n_edge = len(plan.edge_cases)
+            container.success(
+                f"✅ **{display_name}**\n\n"
+                f"Models planned: {n_models} | Edge cases: {n_edge}"
+            )
+        else:
+            container.success(f"✅ **{display_name}**")    
+
+    elif node_name == "architect_review":
+        review = output.get("architect_review")
+        if review:
+            if review.approved:
+                container.success(f"✅ **{display_name}** — Approved")
+            else:
+                n_issues = len(review.structural_issues)
+                container.warning(f"⚠️ **{display_name}** — {n_issues} structural issues, fixed and passed to Reviewer")
+        else:
+            container.success(f"✅ **{display_name}**")
 
     elif node_name == "generator":
         project = output.get("dbt_project")
