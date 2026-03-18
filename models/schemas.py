@@ -128,3 +128,31 @@ class DbtConventions(BaseModel):
     target_dialect: str = "redshift"
     max_joins_per_model: int = 8
     notes: list[str] = []
+
+class PlannedModel(BaseModel):
+    name: str
+    layer: str = ""
+    materialization: str = "table"
+    sources: list[str] = []
+    depends_on: list[str] = []
+    logic: str = ""
+    join_keys: list[str] = []
+
+
+class EdgeCase(BaseModel):
+    pattern: str
+    recommendation: str = ""
+    risk: str = "low"
+
+
+class MigrationPlan(BaseModel):
+    models: list[PlannedModel] = []
+    edge_cases: list[EdgeCase] = []
+    dependency_order: list[str] = []
+    notes: list[str] = []
+
+
+class ArchitectReview(BaseModel):
+    approved: bool
+    structural_issues: list[dict] = []
+    summary: str = ""
