@@ -5,13 +5,14 @@ from tools.llm_client import get_usage_log, get_total_cost, reset_usage
 from utils.logger import reset_logs, get_current_run_logs
 
 
-STEP_ORDER = ["analyzer", "resolver", "architect", "generator", "reviewer", "write_output"]
+STEP_ORDER = ["analyzer", "resolver", "architect", "generator", "architect_review", "reviewer", "write_output"]
 
 STEP_LABELS = {
     "analyzer": "Analyzer",
     "resolver": "Resolver",
-    "architect": "Architect",
-    "generator": "Generator",
+    "architect": "Architect — Plan",
+    "generator": "Developer",
+    "architect_review": "Architect — Code Review",
     "reviewer": "Reviewer",
     "write_output": "Write Output",
 }
