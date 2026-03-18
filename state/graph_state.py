@@ -6,6 +6,8 @@ from models.schemas import (
     DbtProject,
     DbtConventions,
     ReviewResult,
+    MigrationPlan,
+    ArchitectReview,
 )
 
 
@@ -17,6 +19,8 @@ class GraphState(TypedDict, total=False):
     conventions: DbtConventions
     analysis: SASAnalysis
     resolved_mappings: ResolvedMappings
+    migration_plan: MigrationPlan
+    architect_review: ArchitectReview
     dbt_project: DbtProject
     review: ReviewResult
     review_count: int
