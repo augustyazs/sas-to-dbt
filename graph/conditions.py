@@ -28,3 +28,11 @@ def after_reviewer(state: GraphState) -> str:
         return "reviewer"
 
     return "write_output"
+
+
+def after_architect_review(state: GraphState) -> str:
+    """Route after architect review: proceed or loop back."""
+    review = state.get("architect_review")
+    if review and not review.approved:
+        return "reviewer"
+    return "reviewer"
