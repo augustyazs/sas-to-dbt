@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, END
 from state.graph_state import GraphState
 from agents.analyzer import analyzer_node
 from agents.resolver import resolver_node
+from agents.architect import architect_plan_node, architect_review_node
 from agents.generator import generator_node
 from agents.reviewer import reviewer_node
 from graph.conditions import after_analyzer, after_resolver, after_reviewer
@@ -25,15 +26,10 @@ def halt_node(state: GraphState) -> dict:
     print("\n[HALT] Pipeline stopped.")
     print(f"  Status: {state.get('status')}")
     print(f"  Error: {state.get('error', 'See resolver/analyzer output for details')}")
-
     if state.get("resolved_mappings"):
         rm = state["resolved_mappings"]
         if rm.unresolved_tables:
             print(f"  Unresolved tables: {rm.unresolved_tables}")
-            for rt in rm.tables:
-                if rt.unresolved_columns:
-                    print(f"  Unresolved columns in {rt.original_table}: {rt.unresolved_columns}")
-
     return {"status": "halted"}
 
 
@@ -43,7 +39,9 @@ def build_graph() -> StateGraph:
 
     graph.add_node("analyzer", analyzer_node)
     graph.add_node("resolver", resolver_node)
+    graph.add_node("architect", architect_plan_node)
     graph.add_node("generator", generator_node)
+    graph.add_node("architect_review", architect_review_node)
     graph.add_node("reviewer", reviewer_node)
     graph.add_node("write_output", write_output_node)
     graph.add_node("halt", halt_node)
@@ -56,11 +54,13 @@ def build_graph() -> StateGraph:
     })
 
     graph.add_conditional_edges("resolver", after_resolver, {
-        "generator": "generator",
+        "generator": "architect",
         "halt": "halt",
     })
 
-    graph.add_edge("generator", "reviewer")
+    graph.add_edge("architect", "generator")
+    graph.add_edge("generator", "architect_review")
+    graph.add_edge("architect_review", "reviewer")
 
     graph.add_conditional_edges("reviewer", after_reviewer, {
         "reviewer": "reviewer",
