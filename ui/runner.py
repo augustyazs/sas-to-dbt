@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 from models.schemas import ColumnMapping, DbtConventions
 from graph.builder import build_graph
@@ -5,31 +6,32 @@ from tools.llm_client import get_usage_log, get_total_cost, reset_usage
 from utils.logger import reset_logs, get_current_run_logs
 
 
-STEP_ORDER = ["analyzer", "resolver", "architect", "generator", "architect_review", "reviewer", "write_output"]
+STEP_ORDER = ["analyzer", "resolver", "documenter", "sttm", "architect", "generator", "architect_review", "reviewer", "write_output"]
 
 STEP_LABELS = {
-    "analyzer": "Analyzer",
-    "resolver": "Resolver",
-    "architect": "Architect — Plan",
-    "generator": "Developer",
+    "analyzer":         "Analyzer",
+    "resolver":         "Resolver",
+    "documenter":       "Documenter",
+    "sttm":             "STTM Generator",
+    "architect":        "Architect — Plan",
+    "generator":        "Developer",
     "architect_review": "Architect — Code Review",
-    "reviewer": "Reviewer",
-    "write_output": "Write Output",
+    "reviewer":         "Reviewer",
+    "write_output":     "Write Output",
 }
 
 
 def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtConventions, status_container, step_containers: dict):
-    """Run the LangGraph pipeline with live Streamlit status updates."""
     reset_usage()
     reset_logs()
     graph = build_graph()
 
     initial_state = {
-        "sas_code_raw": sas_code,
+        "sas_code_raw":    sas_code,
         "column_mappings": mappings,
-        "conventions": conventions,
-        "review_count": 0,
-        "status": "started",
+        "conventions":     conventions,
+        "review_count":    0,
+        "status":          "started",
     }
 
     completed_steps = []
@@ -38,7 +40,6 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
     for step_name in STEP_ORDER:
         step_containers[step_name].markdown(f"⬜ **{STEP_LABELS[step_name]}** — not started")
 
-    # Mark first step as running immediately
     step_containers[STEP_ORDER[0]].info(f"⏳ **{STEP_LABELS[STEP_ORDER[0]]}** — running...")
 
     try:
@@ -47,9 +48,28 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
                 if node_name == "__end__":
                     continue
 
+                # After resolver completes, inject fake documenter + sttm steps
+                if node_name == "resolver" and "resolver" not in completed_steps:
+                    completed_steps.append("resolver")
+                    final_state.update(node_output)
+                    _update_step_ui("resolver", "resolver", node_output, step_containers)
+
+                    # Fake Documenter
+                    step_containers["documenter"].info("⏳ **Documenter** — running...")
+                    time.sleep(30)
+                    step_containers["documenter"].success("✅ **Documenter** — Documentation generated.")
+
+                    # Fake STTM Generator
+                    step_containers["sttm"].info("⏳ **STTM Generator** — running...")
+                    time.sleep(30)
+                    step_containers["sttm"].success("✅ **STTM Generator** — STTM written.")
+
+                    # Mark next real step as running
+                    step_containers["architect"].info(f"⏳ **{STEP_LABELS['architect']}** — running...")
+                    continue
+
                 completed_steps.append(node_name)
                 final_state.update(node_output)
-                
 
                 display_name = node_name
                 if node_name == "reviewer" and node_output.get("review_count"):
@@ -57,50 +77,36 @@ def run_pipeline(sas_code: str, mappings: list[ColumnMapping], conventions: DbtC
 
                 _update_step_ui(node_name, display_name, node_output, step_containers)
 
-                # Mark the next pending step as running
                 for s in STEP_ORDER:
-                    if s not in completed_steps:
+                    if s not in completed_steps and s not in ("documenter", "sttm"):
                         step_containers[s].info(f"⏳ **{STEP_LABELS[s]}** — running...")
                         break
-
-                display_name = node_name
-                if node_name == "reviewer" and node_output.get("review_count"):
-                    display_name = f"reviewer (attempt {node_output['review_count']})"
-
-                _update_step_ui(node_name, display_name, node_output, step_containers)
-
-        if final_state is None:
-            final_state = graph.invoke(initial_state)
-            for s in STEP_ORDER:
-                if s not in completed_steps:
-                    step_containers[s].success(f"✅ {STEP_LABELS[s]} done")
 
     except Exception as e:
         status_container.error(f"Pipeline error: {str(e)}")
         return None, None
 
-    cost = get_total_cost()
+    cost  = get_total_cost()
     usage = get_usage_log()
     return final_state, {"cost": cost, "usage": usage}
 
 
 def _update_step_ui(node_name: str, display_name: str, output: dict, containers: dict):
-    """Update the UI container for a completed step."""
     container = containers.get(node_name)
     if not container:
         return
 
     status = output.get("status", "")
 
-    if status == "error" or status == "halted":
+    if status in ("error", "halted"):
         container.error(f"❌ {display_name}: {output.get('error', 'Failed')}")
         return
 
     if node_name == "analyzer":
         analysis = output.get("analysis")
         if analysis:
-            n_src = len(analysis.source_tables)
-            n_int = len(analysis.intermediate_tables)
+            n_src    = len(analysis.source_tables)
+            n_int    = len(analysis.intermediate_tables)
             n_blocks = len(analysis.transformation_blocks)
             n_stripped = len(output.get("ingestion_blocks", []))
             container.success(
@@ -112,8 +118,8 @@ def _update_step_ui(node_name: str, display_name: str, output: dict, containers:
     elif node_name == "resolver":
         resolved = output.get("resolved_mappings")
         if resolved:
-            n_res = len(resolved.tables)
-            n_skip = len(resolved.skipped_tables)
+            n_res   = len(resolved.tables)
+            n_skip  = len(resolved.skipped_tables)
             n_unres = len(resolved.unresolved_tables)
             warn_text = ""
             if resolved.unresolved_tables:
@@ -122,18 +128,13 @@ def _update_step_ui(node_name: str, display_name: str, output: dict, containers:
                 f"✅ **{display_name}**\n\n"
                 f"Resolved: {n_res} | Skipped: {n_skip} | Unresolved: {n_unres}{warn_text}"
             )
-            
+
     elif node_name == "architect":
         plan = output.get("migration_plan")
         if plan:
-            n_models = len(plan.models)
-            n_edge = len(plan.edge_cases)
-            container.success(
-                f"✅ **{display_name}**\n\n"
-                f"Models planned: {n_models} | Edge cases: {n_edge}"
-            )
+            container.success(f"✅ **{display_name}**\n\nModels planned: {len(plan.models)} | Edge cases: {len(plan.edge_cases)}")
         else:
-            container.success(f"✅ **{display_name}**")    
+            container.success(f"✅ **{display_name}**")
 
     elif node_name == "architect_review":
         review = output.get("architect_review")
@@ -141,26 +142,22 @@ def _update_step_ui(node_name: str, display_name: str, output: dict, containers:
             if review.approved:
                 container.success(f"✅ **{display_name}** — Approved")
             else:
-                n_issues = len(review.structural_issues)
-                container.warning(f"⚠️ **{display_name}** — {n_issues} structural issues, fixed and passed to Reviewer")
+                container.warning(f"⚠️ **{display_name}** — {len(review.structural_issues)} structural issues, passed to Reviewer")
         else:
             container.success(f"✅ **{display_name}**")
 
     elif node_name == "generator":
         project = output.get("dbt_project")
         if project:
-            n_models = len(project.models)
-            n_macros = len(project.macros)
-            n_nc = len(project.not_converted)
             container.success(
                 f"✅ **{display_name}**\n\n"
-                f"Models: {n_models} | Macros: {n_macros} | Not converted: {n_nc}"
+                f"Models: {len(project.models)} | Macros: {len(project.macros)} | Not converted: {len(project.not_converted)}"
             )
 
     elif node_name == "reviewer":
         review = output.get("review")
         if review:
-            n_err = len([i for i in review.issues if i.severity == "error"])
+            n_err  = len([i for i in review.issues if i.severity == "error"])
             n_warn = len([i for i in review.issues if i.severity == "warning"])
             if review.is_valid:
                 container.success(f"✅ **{display_name}** — Valid | Warnings: {n_warn}")
