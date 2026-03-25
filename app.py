@@ -21,7 +21,20 @@ from utils.logger import get_current_run_logs
 from config.settings import INPUTS_DIR
 
 
-# ── HELPERS — defined before use ─────────────────────────────────────────────
+# ── SESSION STATE INIT ────────────────────────────────────────────────────────
+if "api_key_input" not in st.session_state:
+    st.session_state.api_key_input = ""
+if "final_state" not in st.session_state:
+    st.session_state.final_state = None
+if "cost_data" not in st.session_state:
+    st.session_state.cost_data = None
+if "run_error" not in st.session_state:
+    st.session_state.run_error = None
+if "log_files" not in st.session_state:
+    st.session_state.log_files = []
+
+
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 def _render_architect_detail(plan):
     with st.expander("Architect Detail", expanded=False):
         tab1, tab2 = st.tabs(["Planned Models", "Edge Cases"])
@@ -50,6 +63,42 @@ def _render_generator_detail(project):
                 st.markdown(f"- {item}")
 
 
+def _run_pipeline_and_store(sas_code, mapping_raw):
+    """Parse inputs, run pipeline, persist all results to session state."""
+    st.session_state.run_error   = None
+    st.session_state.final_state = None
+    st.session_state.cost_data   = None
+    st.session_state.log_files   = []
+
+    try:
+        col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
+    except Exception as e:
+        st.session_state.run_error = f"Failed to parse mapping file: {e}"
+        return
+
+    conventions      = DbtConventions()
+    status_container = st.empty()
+    step_containers  = render_pipeline_steps()
+
+    with st.spinner("Running pipeline..."):
+        final_state, cost_data = run_pipeline(
+            sas_code=sas_code,
+            mappings=col_mappings,
+            conventions=conventions,
+            status_container=status_container,
+            step_containers=step_containers,
+        )
+
+    if final_state is None:
+        st.session_state.run_error = "Pipeline failed. Check logs for details."
+        return
+
+    st.session_state.final_state = final_state
+    st.session_state.cost_data   = cost_data
+    st.session_state.log_files   = get_current_run_logs()
+
+
+# ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="HPP Capabilities — SAS to dbt",
     page_icon="⚡",
@@ -61,29 +110,26 @@ st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
     div[data-testid="stMetric"] {
-        background: #f8f9fa;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
+        background: #f8f9fa; padding: 12px;
+        border-radius: 8px; border: 1px solid #e0e0e0;
     }
     div[data-testid="stMetric"] label { color: #333 !important; }
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #1a1a1a !important;
-        font-weight: 700;
+        color: #1a1a1a !important; font-weight: 700;
     }
     div[data-testid="stExpander"] { border: 1px solid #334155; border-radius: 8px; }
     .zs-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
     .zs-header img { height: 40px; }
-    .zs-header h1 { font-size: 28px; font-weight: 700; margin: 0; }
-    .zs-header p  { font-size: 14px; color: #888; margin: 0; }
+    .zs-header h1  { font-size: 28px; font-weight: 700; margin: 0; }
+    .zs-header p   { font-size: 14px; color: #888; margin: 0; }
     .log-box {
         background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px;
         font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto;
         border: 1px solid #334155; white-space: pre-wrap;
     }
     .human-review-alert {
-        background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px;
-        padding: 16px; margin: 12px 0;
+        background: #fef3c7; border: 2px solid #f59e0b;
+        border-radius: 8px; padding: 16px; margin: 12px 0;
     }
     .human-review-alert h3 { color: #92400e; margin: 0 0 8px 0; }
     .human-review-alert p  { color: #78350f; margin: 4px 0; font-size: 14px; }
@@ -112,9 +158,13 @@ with st.sidebar:
 
     st.subheader("API Key")
     api_key_input = st.text_input(
-        "OpenAI API Key", type="password", placeholder="sk-...",
+        "OpenAI API Key",
+        type="password",
+        placeholder="sk-...",
         help="Not stored anywhere. Lives only in your browser session.",
+        value=st.session_state.api_key_input,
     )
+    st.session_state.api_key_input = api_key_input
     if api_key_input:
         os.environ["OPENAI_API_KEY"] = api_key_input
 
@@ -160,7 +210,7 @@ with st.sidebar:
     """)
 
 
-# ── INPUT SCANNING ────────────────────────────────────────────────────────────
+# ── INPUTS ────────────────────────────────────────────────────────────────────
 SAS_DIR     = INPUTS_DIR / "sas_scripts"
 MAPPING_DIR = INPUTS_DIR / "column_mapping"
 
@@ -177,9 +227,7 @@ def get_mapping_files():
     return []
 
 
-# ── INPUTS SECTION ────────────────────────────────────────────────────────────
 st.header("📂 Inputs")
-
 sas_code    = None
 mapping_raw = None
 
@@ -190,106 +238,91 @@ with tab_select:
     with col1:
         sas_files = get_sas_files()
         if sas_files:
-            selected_sas = st.selectbox(
+            sel = st.selectbox(
                 "Select SAS Script from Git Repo Inputs folder",
                 ["-- select --"] + sas_files, key="sas_select",
             )
-            if selected_sas != "-- select --":
+            if sel != "-- select --":
                 for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
                     try:
-                        sas_code = (SAS_DIR / selected_sas).read_text(encoding=enc)
+                        sas_code = (SAS_DIR / sel).read_text(encoding=enc)
                         if sas_code.strip(): break
                     except (UnicodeDecodeError, ValueError):
                         continue
         else:
             st.info("No .sas files found in inputs/sas_scripts/")
     with col2:
-        mapping_files = get_mapping_files()
-        if mapping_files:
-            selected_mapping = st.selectbox(
-                "Select Column Mapping", ["-- select --"] + mapping_files, key="map_select",
+        map_files = get_mapping_files()
+        if map_files:
+            sel = st.selectbox(
+                "Select Column Mapping", ["-- select --"] + map_files, key="map_select",
             )
-            if selected_mapping != "-- select --":
-                mapping_raw = (MAPPING_DIR / selected_mapping).read_text(encoding="utf-8")
+            if sel != "-- select --":
+                mapping_raw = (MAPPING_DIR / sel).read_text(encoding="utf-8")
         else:
             st.info("No .json mapping files found in inputs/")
 
 with tab_upload:
     col1, col2 = st.columns(2)
     with col1:
-        sas_file = st.file_uploader("Upload SAS Script", type=["sas", "txt"], key="sas_upload")
-        if sas_file:
+        up = st.file_uploader("Upload SAS Script", type=["sas", "txt"], key="sas_upload")
+        if up:
             for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
                 try:
-                    sas_code = sas_file.getvalue().decode(enc)
+                    sas_code = up.getvalue().decode(enc)
                     if sas_code.strip(): break
                 except (UnicodeDecodeError, ValueError):
                     continue
     with col2:
-        mapping_file = st.file_uploader("Upload Column Mapping", type=["json", "csv"], key="mapping_upload")
-        if mapping_file:
-            mapping_raw = mapping_file.getvalue().decode("utf-8")
+        up = st.file_uploader("Upload Column Mapping", type=["json", "csv"], key="mapping_upload")
+        if up:
+            mapping_raw = up.getvalue().decode("utf-8")
 
 if sas_code:    render_sas_preview(sas_code)
 if mapping_raw: render_mapping_preview(mapping_raw)
 
 
 # ── RUN BUTTON ────────────────────────────────────────────────────────────────
-can_run = sas_code is not None and mapping_raw is not None and bool(api_key_input)
+can_run = sas_code is not None and mapping_raw is not None and bool(st.session_state.api_key_input)
 
 if not can_run:
     missing = []
-    if not sas_code:      missing.append("SAS script")
-    if not mapping_raw:   missing.append("column mapping")
-    if not api_key_input: missing.append("API key (sidebar)")
+    if not sas_code:                        missing.append("SAS script")
+    if not mapping_raw:                     missing.append("column mapping")
+    if not st.session_state.api_key_input:  missing.append("API key (sidebar)")
     st.info(f"Missing: {', '.join(missing)}")
 
-col_run, col_status = st.columns([1, 4])
+col_run, _ = st.columns([1, 4])
 with col_run:
     run_clicked = st.button(
         "🚀 Run Pipeline", disabled=not can_run,
         type="primary", use_container_width=True,
     )
 
-# ── EVERYTHING BELOW ONLY RUNS WHEN BUTTON IS CLICKED ────────────────────────
-# This is identical to the pattern that worked before — no st.stop(), no session
-# state gating. The if-block naturally prevents re-execution on re-renders since
-# run_clicked is False on every render except the one where the button is pressed.
+# Trigger pipeline on button click — all outputs stored in session state
 if run_clicked and can_run:
-    try:
-        mapping_data = json.loads(mapping_raw)
-        col_mappings = [ColumnMapping(**entry) for entry in mapping_data]
-    except Exception as e:
-        st.error(f"Failed to parse mapping file: {e}")
-        st.stop()
-
-    conventions = DbtConventions()
-
     st.header("⚙️ Pipeline Progress")
-    status_container = st.empty()
-    step_containers  = render_pipeline_steps()
+    _run_pipeline_and_store(sas_code, mapping_raw)
 
-    with st.spinner("Running pipeline..."):
-        final_state, cost_data = run_pipeline(
-            sas_code=sas_code,
-            mappings=col_mappings,
-            conventions=conventions,
-            status_container=status_container,
-            step_containers=step_containers,
-        )
 
-    if final_state is None:
-        st.error("Pipeline failed. Check logs for details.")
-        st.stop()
+# ── RENDER OUTPUTS FROM SESSION STATE ────────────────────────────────────────
+# Rendered on every rerun as long as results exist — survives tab clicks,
+# dropdown changes, download buttons, and sidebar interactions.
+
+if st.session_state.run_error:
+    st.error(st.session_state.run_error)
+
+final_state = st.session_state.final_state
+cost_data   = st.session_state.cost_data
+log_files   = st.session_state.log_files
+
+if final_state is not None:
 
     # ── HUMAN REVIEW ALERTS ───────────────────────────────────────────────────
     st.divider()
-    _show_human_review = False
-
     if final_state.get("resolved_mappings"):
         rm = final_state["resolved_mappings"]
         if rm.unresolved_tables:
-            _show_human_review = True
             st.markdown(f"""
             <div class="human-review-alert">
                 <h3>👤 Human Review Required — Unresolved Mappings</h3>
@@ -304,19 +337,18 @@ if run_clicked and can_run:
         if not review.is_valid:
             errors = [i for i in review.issues if i.severity == "error"]
             if errors:
-                _show_human_review = True
                 error_details = "<br>".join(f"• <b>{i.file}</b>: {i.issue}" for i in errors[:10])
                 st.markdown(f"""
                 <div class="human-review-alert">
                     <h3>👤 Human Review Required — Logic Parity Issues</h3>
                     <p><b>The following errors were not resolved after max retry attempts:</b></p>
                     <p>{error_details}</p>
-                    <p>Please review the generated files and correct manually, or provide additional
-                    business rules and re-run.</p>
+                    <p>Please review the generated files and correct manually, or provide
+                    additional business rules and re-run.</p>
                 </div>
                 """, unsafe_allow_html=True)
 
-    # ── STEP DETAILS ─────────────────────────────────────────────────────────
+    # ── AGENTS SUMMARY ────────────────────────────────────────────────────────
     st.divider()
     st.header("🔍 Agents Summary")
     if final_state.get("analysis"):
@@ -334,13 +366,13 @@ if run_clicked and can_run:
     st.divider()
     st.header("📝 Pipeline Logs")
     _EXCLUDED = ("ingestion_blocks", "sttm_output", "sas_documentation")
-    log_files = [
-        f for f in get_current_run_logs()
+    visible_logs = [
+        f for f in log_files
         if not any(f.stem.startswith(p) for p in _EXCLUDED)
     ]
-    if log_files:
-        log_tabs = st.tabs([f.stem for f in log_files])
-        for tab, log_file in zip(log_tabs, log_files):
+    if visible_logs:
+        log_tabs = st.tabs([f.stem for f in visible_logs])
+        for tab, log_file in zip(log_tabs, visible_logs):
             with tab:
                 try:
                     content = json.loads(log_file.read_text(encoding="utf-8"))
@@ -357,7 +389,7 @@ if run_clicked and can_run:
     else:
         st.info("No logs generated for this run.")
 
-    # ── OUTPUT SUMMARY (dbt files) ────────────────────────────────────────────
+    # ── OUTPUT SUMMARY ────────────────────────────────────────────────────────
     st.divider()
     if final_state.get("dbt_project"):
         render_generated_files(final_state["dbt_project"])
