@@ -5,16 +5,16 @@ import base64
 from pathlib import Path
 from models.schemas import ColumnMapping, DbtConventions
 from ui.components import (
-    render_sas_preview,
-    render_mapping_preview,
-    render_pipeline_steps,
-    render_output_sections,
-    render_agents_summary,
-    render_pipeline_logs,
-    render_output_summary,
-    render_documentation,
-    render_sttm,
-    render_cost_summary,
+    render_sas_preview,        # input preview
+    render_mapping_preview,    # input preview
+    render_pipeline_steps,     # right-column timeline — returns (containers, loop_area)
+    render_output_sections,    # center collapsed expanders
+    render_agents_summary,     # replaces old render_analyzer/resolver/review_detail
+    render_pipeline_logs,      # replaces old inline log rendering
+    render_output_summary,     # replaces old render_generated_files
+    render_documentation,      # new
+    render_sttm,               # new
+    render_cost_summary,       # unchanged signature
 )
 from ui.runner import run_pipeline
 from utils.logger import get_current_run_logs
