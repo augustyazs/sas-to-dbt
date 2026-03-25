@@ -34,7 +34,6 @@ STEP_SECTION = {
     "generator": "agents",
     "documenter": "documents",
     "sttm":       "documents",
-    # write_output is handled separately as the footer bar
 }
 
 
@@ -77,6 +76,10 @@ def run_pipeline(
             "elapsed": None,
         })
 
+    # Mutable container for write_output status (avoids nonlocal issues in closures)
+    wo = {"status": "pending"}
+
+    # Initialise session state + render initial pending state
     st.session_state.pipeline_steps = list(steps)
     st.session_state.write_output_status = wo["status"]
     render_pipeline_progress(progress_slot, steps, wo["status"])
@@ -132,11 +135,7 @@ def run_pipeline(
     # ── kick off first step ────────────────────────────────────────────────────
     _set_running("analyzer")
 
-    # track which reviewer/fixer pass we're on
-    current_reviewer_label: str | None = None
-    current_fixer_label:    str | None = None
-    # use a mutable container so inner logic can update write_output_status
-    wo = {"status": "pending"}
+    current_fixer_label: str | None = None
 
     try:
         for event in graph.stream(initial_state, stream_mode="updates"):
@@ -152,23 +151,17 @@ def run_pipeline(
                     passed = node_output.get("status", "") in ("complete", "complete_with_warnings")
                     label  = f"Reviewer {count}"
 
-                    # If this reviewer row is already in the list, finish it
                     if _step_by_key(label):
                         _finish_review_row(label, "done" if passed else "error")
                     else:
-                        # First time we see this reviewer — add + immediately finish
                         _add_review_row(label, "running")
                         _finish_review_row(label, "done" if passed else "error")
 
-                    current_reviewer_label = label
-
                     if not passed:
-                        # Fixer is next
                         fixer_label = f"Fixer {count}"
                         current_fixer_label = fixer_label
                         _add_review_row(fixer_label, "running")
                     else:
-                        # Move to write_output
                         wo["status"] = "running"
                         _refresh()
 
@@ -176,7 +169,7 @@ def run_pipeline(
                 elif node_name == "fixer":
                     if current_fixer_label:
                         _finish_review_row(current_fixer_label, "done")
-                    # Next reviewer pass will be added when reviewer fires again
+                        current_fixer_label = None
 
                 # ── write_output ───────────────────────────────────────────────
                 elif node_name == "write_output":
@@ -189,7 +182,7 @@ def run_pipeline(
                     errored = node_output.get("status") in ("error", "halted")
                     _set_done(node_name, errored=errored)
 
-                    # Advance next pending fixed step
+                    # Advance next pending fixed step to running
                     fixed_keys = [s["key"] for s in steps if s["section"] in ("agents", "documents")]
                     for key in fixed_keys:
                         obj = _step_by_key(key)
@@ -200,12 +193,12 @@ def run_pipeline(
                     # After generator finishes, add Reviewer 1 as running
                     if node_name == "generator":
                         _add_review_row("Reviewer 1", "running")
-                        current_reviewer_label = "Reviewer 1"
 
     except Exception as e:
         st.error(f"Pipeline error: {str(e)}")
         return None, None
 
+    # Final render
     st.session_state.pipeline_steps = list(steps)
     st.session_state.write_output_status = wo["status"]
     render_pipeline_progress(progress_slot, steps, wo["status"])
