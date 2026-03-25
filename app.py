@@ -7,7 +7,6 @@ from models.schemas import ColumnMapping, DbtConventions
 from ui.components import (
     render_sas_preview,
     render_mapping_preview,
-    render_pipeline_steps,
     render_pipeline_timeline,
     render_analyzer_detail,
     render_resolver_detail,
@@ -23,12 +22,12 @@ from config.settings import INPUTS_DIR
 
 
 # ── SESSION STATE INIT ────────────────────────────────────────────────────────
-if "api_key_input"   not in st.session_state: st.session_state.api_key_input   = ""
-if "final_state"     not in st.session_state: st.session_state.final_state     = None
-if "cost_data"       not in st.session_state: st.session_state.cost_data       = None
-if "run_error"       not in st.session_state: st.session_state.run_error       = None
-if "log_files"       not in st.session_state: st.session_state.log_files       = []
-if "pipeline_steps"  not in st.session_state: st.session_state.pipeline_steps  = []
+if "api_key_input"    not in st.session_state: st.session_state.api_key_input    = ""
+if "final_state"      not in st.session_state: st.session_state.final_state      = None
+if "cost_data"        not in st.session_state: st.session_state.cost_data        = None
+if "run_error"        not in st.session_state: st.session_state.run_error        = None
+if "log_files"        not in st.session_state: st.session_state.log_files        = []
+if "pipeline_steps"   not in st.session_state: st.session_state.pipeline_steps   = []
 if "pipeline_running" not in st.session_state: st.session_state.pipeline_running = False
 
 
@@ -51,10 +50,10 @@ def _render_architect_detail(plan):
 
 def _render_generator_detail(project):
     with st.expander("Developer (Generator)", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Models",        len(project.models))
-        col2.metric("Macros",        len(project.macros))
-        col3.metric("Not Converted", len(project.not_converted))
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Models",        len(project.models))
+        c2.metric("Macros",        len(project.macros))
+        c3.metric("Not Converted", len(project.not_converted))
         if project.not_converted:
             st.markdown("**Not Converted:**")
             for item in project.not_converted:
@@ -63,51 +62,58 @@ def _render_generator_detail(project):
 
 def _render_fixer_detail(final_state):
     review_count = final_state.get("review_count", 0)
-    if review_count and review_count > 0:
-        review = final_state.get("review")
+    if review_count:
         with st.expander("Fixer", expanded=False):
-            st.info(
-                f"Fixer ran {review_count} time(s). "
-                f"See Pipeline Logs → fixer_raw_* for per-pass details."
-            )
+            st.info(f"Fixer ran {review_count} time(s). See Pipeline Logs → fixer_raw_* for details.")
 
 
-def _run_pipeline_and_store(sas_code, mapping_raw):
-    """Run pipeline and persist all outputs to session state."""
-    st.session_state.run_error       = None
-    st.session_state.final_state     = None
-    st.session_state.cost_data       = None
-    st.session_state.log_files       = []
-    st.session_state.pipeline_steps  = []
-    st.session_state.pipeline_running = True
+def _fill_output_sections(placeholders: dict, final_state: dict, cost_data, log_files):
+    """Fill all output section placeholders with real content."""
 
-    try:
-        col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
-    except Exception as e:
-        st.session_state.run_error       = f"Failed to parse mapping file: {e}"
-        st.session_state.pipeline_running = False
-        return
+    with placeholders["agents_summary"]:
+        if final_state.get("analysis"):          render_analyzer_detail(final_state["analysis"])
+        if final_state.get("resolved_mappings"): render_resolver_detail(final_state["resolved_mappings"])
+        if final_state.get("migration_plan"):    _render_architect_detail(final_state["migration_plan"])
+        if final_state.get("dbt_project"):       _render_generator_detail(final_state["dbt_project"])
+        if final_state.get("review"):            render_review_detail(final_state["review"])
+        _render_fixer_detail(final_state)
 
-    conventions = DbtConventions()
+    with placeholders["pipeline_logs"]:
+        _EXCL = ("ingestion_blocks", "sttm_output", "sas_documentation")
+        visible = [f for f in log_files if not any(f.stem.startswith(p) for p in _EXCL)]
+        if visible:
+            log_tabs = st.tabs([f.stem for f in visible])
+            for tab, lf in zip(log_tabs, visible):
+                with tab:
+                    try:
+                        content = json.loads(lf.read_text(encoding="utf-8"))
+                        st.markdown(
+                            f'<div class="log-box">{json.dumps(content, indent=2)}</div>',
+                            unsafe_allow_html=True)
+                    except Exception:
+                        st.markdown(
+                            f'<div class="log-box">{lf.read_text(encoding="utf-8")[:5000]}</div>',
+                            unsafe_allow_html=True)
+        else:
+            st.info("No logs available.")
 
-    with st.spinner("Pipeline running..."):
-        final_state, cost_data = run_pipeline(
-            sas_code=sas_code,
-            mappings=col_mappings,
-            conventions=conventions,
-            status_container=st.empty(),
-            step_containers={},
-        )
+    with placeholders["output_summary"]:
+        if final_state.get("dbt_project"):
+            render_generated_files(final_state["dbt_project"])
+        else:
+            st.info("No dbt project generated.")
 
-    st.session_state.pipeline_running = False
+    with placeholders["cost_summary"]:
+        if cost_data:
+            render_cost_summary(cost_data)
+        else:
+            st.info("No cost data available.")
 
-    if final_state is None:
-        st.session_state.run_error = "Pipeline failed. Check logs for details."
-        return
+    with placeholders["documentation"]:
+        render_documentation(final_state.get("sas_documentation"))
 
-    st.session_state.final_state = final_state
-    st.session_state.cost_data   = cost_data
-    st.session_state.log_files   = get_current_run_logs()
+    with placeholders["sttm"]:
+        render_sttm(final_state.get("sttm_data"))
 
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
@@ -145,11 +151,6 @@ st.markdown("""
     }
     .human-review-alert h3 { color:#92400e; margin:0 0 8px 0; }
     .human-review-alert p  { color:#78350f; margin:4px 0; font-size:14px; }
-    /* Right panel card */
-    .progress-card {
-        background:#1e293b; border-radius:10px; padding:16px;
-        border:1px solid #334155; min-height:200px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -296,142 +297,143 @@ with col_run:
     run_clicked = st.button("🚀 Run Pipeline", disabled=not can_run,
                             type="primary", use_container_width=True)
 
-
-# ── TWO-COLUMN LAYOUT (shown once pipeline has been triggered at least once) ──
-pipeline_active = (
-    st.session_state.pipeline_running
-    or st.session_state.final_state is not None
+# ── LAYOUT: shown once pipeline has been triggered at least once ──────────────
+pipeline_ever_run = (
+    st.session_state.final_state is not None
     or st.session_state.run_error is not None
     or len(st.session_state.pipeline_steps) > 0
+    or run_clicked
 )
 
-if run_clicked and can_run:
-    pipeline_active = True  # show layout immediately on click
+if not pipeline_ever_run:
+    st.stop()
 
-if pipeline_active:
-    st.divider()
-    col_main, col_progress = st.columns([3, 1])
+st.divider()
+col_main, col_progress = st.columns([3, 1])
 
-    # ── RIGHT: Pipeline Progress ──────────────────────────────────────────────
-    with col_progress:
-        st.markdown("### ⚙️ Pipeline Progress")
-        st.markdown('<div class="progress-card">', unsafe_allow_html=True)
+# ── RIGHT: Pipeline Progress ──────────────────────────────────────────────────
+with col_progress:
+    st.markdown("### ⚙️ Pipeline Progress")
+    timeline_placeholder = st.empty()
+    # Render timeline from session state (shows steps from previous/current run)
+    with timeline_placeholder:
         render_pipeline_timeline()
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── CENTER: Output sections (pre-rendered collapsed) ──────────────────────
+# ── CENTER: Output sections as expanders with placeholders ───────────────────
+with col_main:
+    st.markdown("### 📋 Pipeline Outputs")
+
+    section_defs = [
+        ("agents_summary",  "📊 Agents Summary"),
+        ("pipeline_logs",   "📝 Pipeline Logs"),
+        ("output_summary",  "⚙️ Output Summary"),
+        ("cost_summary",    "💰 Cost Summary"),
+        ("documentation",   "📄 Documentation"),
+        ("sttm",            "🗺️ Source-to-Target Mapping"),
+    ]
+
+    placeholders = {}
+    for key, label in section_defs:
+        with st.expander(label, expanded=False):
+            placeholders[key] = st.empty()
+            # If results already exist (rerun from widget interaction), fill immediately
+            if st.session_state.final_state is not None:
+                pass  # filled below after expanders are created
+            else:
+                placeholders[key].info("⏳ Waiting for pipeline to complete...")
+
+# ── EXECUTE PIPELINE (blocking — same proven pattern) ────────────────────────
+if run_clicked and can_run:
+    # Clear previous results
+    st.session_state.run_error       = None
+    st.session_state.final_state     = None
+    st.session_state.cost_data       = None
+    st.session_state.log_files       = []
+    st.session_state.pipeline_steps  = []
+
+    # Show spinners in all output sections while running
+    for key in placeholders:
+        placeholders[key].info("⏳ Pipeline running — please wait...")
+
+    # Reset timeline to empty
+    with timeline_placeholder:
+        render_pipeline_timeline()
+
+    # Parse inputs
+    try:
+        col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
+    except Exception as e:
+        st.session_state.run_error = f"Failed to parse mapping file: {e}"
+        col_mappings = None
+
+    if col_mappings is not None:
+        conventions = DbtConventions()
+
+        with st.spinner("Pipeline running..."):
+            final_state, cost_data = run_pipeline(
+                sas_code=sas_code,
+                mappings=col_mappings,
+                conventions=conventions,
+                status_container=st.empty(),
+                step_containers={},
+            )
+
+        # Update timeline with completed steps
+        with timeline_placeholder:
+            render_pipeline_timeline()
+
+        if final_state is None:
+            st.session_state.run_error = "Pipeline failed. Check logs for details."
+        else:
+            st.session_state.final_state = final_state
+            st.session_state.cost_data   = cost_data
+            st.session_state.log_files   = get_current_run_logs()
+
+# ── FILL OUTPUT SECTIONS (from session state — works on both initial run and reruns)
+if st.session_state.run_error:
     with col_main:
-        st.markdown("### 📋 Pipeline Outputs")
+        st.error(st.session_state.run_error)
 
-        _running = st.session_state.pipeline_running
-        _done    = st.session_state.final_state is not None
+if st.session_state.final_state is not None:
+    final_state = st.session_state.final_state
+    cost_data   = st.session_state.cost_data
+    log_files   = st.session_state.log_files
 
-        # Pre-render all output sections collapsed
-        # While running: spinner inside. After done: real content.
-        with st.expander("📊 Agents Summary", expanded=False):
-            if _running:
-                st.spinner("Waiting for pipeline...")
-            elif _done:
-                final = st.session_state.final_state
-                if final.get("analysis"):        render_analyzer_detail(final["analysis"])
-                if final.get("resolved_mappings"): render_resolver_detail(final["resolved_mappings"])
-                if final.get("migration_plan"):  _render_architect_detail(final["migration_plan"])
-                if final.get("dbt_project"):     _render_generator_detail(final["dbt_project"])
-                if final.get("review"):          render_review_detail(final["review"])
-                _render_fixer_detail(final)
+    _fill_output_sections(placeholders, final_state, cost_data, log_files)
 
-        with st.expander("📝 Pipeline Logs", expanded=False):
-            if _running:
-                st.spinner("Waiting for pipeline...")
-            elif _done:
-                _EXCL = ("ingestion_blocks", "sttm_output", "sas_documentation")
-                visible = [f for f in st.session_state.log_files
-                           if not any(f.stem.startswith(p) for p in _EXCL)]
-                if visible:
-                    log_tabs = st.tabs([f.stem for f in visible])
-                    for tab, lf in zip(log_tabs, visible):
-                        with tab:
-                            try:
-                                content = json.loads(lf.read_text(encoding="utf-8"))
-                                st.markdown(
-                                    f'<div class="log-box">{json.dumps(content, indent=2)}</div>',
-                                    unsafe_allow_html=True)
-                            except Exception:
-                                st.markdown(
-                                    f'<div class="log-box">{lf.read_text(encoding="utf-8")[:5000]}</div>',
-                                    unsafe_allow_html=True)
-                else:
-                    st.info("No logs available.")
+    # Human review alerts
+    with col_main:
+        if final_state.get("resolved_mappings") and final_state["resolved_mappings"].unresolved_tables:
+            rm = final_state["resolved_mappings"]
+            st.markdown(f"""
+            <div class="human-review-alert">
+                <h3>👤 Human Review Required — Unresolved Mappings</h3>
+                <p>{'<br>'.join('• ' + t for t in rm.unresolved_tables)}</p>
+                <p>Update the column mapping file and re-run.</p>
+            </div>""", unsafe_allow_html=True)
 
-        with st.expander("⚙️ Output Summary", expanded=False):
-            if _running:
-                st.spinner("Waiting for pipeline...")
-            elif _done and st.session_state.final_state.get("dbt_project"):
-                render_generated_files(st.session_state.final_state["dbt_project"])
-
-        with st.expander("💰 Cost Summary", expanded=False):
-            if _running:
-                st.spinner("Waiting for pipeline...")
-            elif _done and st.session_state.cost_data:
-                render_cost_summary(st.session_state.cost_data)
-
-        with st.expander("📄 Documentation", expanded=False):
-            if _running:
-                st.spinner("Waiting for pipeline...")
-            elif _done:
-                render_documentation(st.session_state.final_state.get("sas_documentation"))
-
-        with st.expander("🗺️ Source-to-Target Mapping", expanded=False):
-            if _running:
-                st.spinner("Waiting for pipeline...")
-            elif _done:
-                render_sttm(st.session_state.final_state.get("sttm_data"))
-
-    # ── RUN (inside layout so progress column is visible while running) ───────
-    if run_clicked and can_run:
-        with col_main:
-            _run_pipeline_and_store(sas_code, mapping_raw)
-
-    # ── HUMAN REVIEW ALERTS ───────────────────────────────────────────────────
-    if st.session_state.run_error:
-        with col_main:
-            st.error(st.session_state.run_error)
-
-    if st.session_state.final_state:
-        final = st.session_state.final_state
-        with col_main:
-            if final.get("resolved_mappings") and final["resolved_mappings"].unresolved_tables:
-                rm = final["resolved_mappings"]
+        if final_state.get("review") and not final_state["review"].is_valid:
+            errors = [i for i in final_state["review"].issues if i.severity == "error"]
+            if errors:
                 st.markdown(f"""
                 <div class="human-review-alert">
-                    <h3>👤 Human Review Required — Unresolved Mappings</h3>
-                    <p>{'<br>'.join('• ' + t for t in rm.unresolved_tables)}</p>
-                    <p>Update the column mapping file and re-run.</p>
+                    <h3>👤 Human Review Required — Logic Parity Issues</h3>
+                    <p>{'<br>'.join(f"• <b>{i.file}</b>: {i.issue}" for i in errors[:10])}</p>
                 </div>""", unsafe_allow_html=True)
 
-            if final.get("review") and not final["review"].is_valid:
-                errors = [i for i in final["review"].issues if i.severity == "error"]
-                if errors:
-                    st.markdown(f"""
-                    <div class="human-review-alert">
-                        <h3>👤 Human Review Required — Logic Parity Issues</h3>
-                        <p>{'<br>'.join(f"• <b>{i.file}</b>: {i.issue}" for i in errors[:10])}</p>
-                    </div>""", unsafe_allow_html=True)
+    # Status footer
+    final_status = final_state.get("status", "unknown")
+    color = "#1e8c45" if final_status in ("done","complete","complete_with_warnings") else "#c0392b"
+    label = {
+        "done":                   "Pipeline completed successfully",
+        "complete":               "Pipeline completed successfully",
+        "complete_with_warnings": "Pipeline completed with warnings",
+        "halted":                 f"Pipeline halted — {final_state.get('error','see logs')}",
+    }.get(final_status, f"Pipeline ended — {final_status}")
 
-        # Status footer
-        final_status = final.get("status", "unknown")
-        status_color = "#1e8c45" if final_status in ("done","complete","complete_with_warnings") else "#c0392b"
-        status_text  = {
-            "done":                   "Pipeline completed successfully",
-            "complete":               "Pipeline completed successfully",
-            "complete_with_warnings": "Pipeline completed with warnings",
-            "halted":                 f"Pipeline halted — {final.get('error','see logs')}",
-        }.get(final_status, f"Pipeline ended — {final_status}")
-
-        st.markdown(
-            f"<div style='margin-top:16px; padding:10px 16px; background:{status_color}22; "
-            f"border:1px solid {status_color}; border-radius:8px; text-align:center;'>"
-            f"<span style='color:{status_color}; font-weight:600;'>● {status_text}</span>"
-            f"</div>",
-            unsafe_allow_html=True,
-        )
+    st.markdown(
+        f"<div style='margin-top:16px; padding:10px 16px; background:{color}22; "
+        f"border:1px solid {color}; border-radius:8px; text-align:center;'>"
+        f"<span style='color:{color}; font-weight:600;'>● {label}</span></div>",
+        unsafe_allow_html=True,
+    )
