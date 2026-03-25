@@ -1,45 +1,37 @@
 import io
 import json
 import zipfile
+from pathlib import Path
 import streamlit as st
 from models.schemas import DbtProject, ReviewResult, SASAnalysis, ResolvedMappings
+from config.settings import DOC_OUTPUT_DIR
 
 
-def render_file_uploaders():
-    """Render SAS and mapping file uploaders. Returns (sas_code, mapping_raw)."""
-    col1, col2 = st.columns(2)
+# ── helpers ───────────────────────────────────────────────────────────────────
 
-    with col1:
-        sas_file = st.file_uploader("Upload SAS Script", type=["sas", "txt"], key="sas_upload")
-    with col2:
-        mapping_file = st.file_uploader("Upload Column Mapping", type=["json", "csv"], key="mapping_upload")
+def _read_doc_file(filename: str) -> bytes | None:
+    """Read a file from DOC_OUTPUT_DIR. Returns bytes or None if missing."""
+    p = DOC_OUTPUT_DIR / filename
+    return p.read_bytes() if p.exists() else None
 
-    sas_code = None
-    mapping_raw = None
 
-    if sas_file:
-        for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
-            try:
-                sas_code = sas_file.getvalue().decode(enc)
-                if sas_code.strip():
-                    break
-            except (UnicodeDecodeError, ValueError):
-                continue
+def _create_zip(files: list[tuple[str, str]]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path, content in files:
+            zf.writestr(path, content)
+    buf.seek(0)
+    return buf.getvalue()
 
-    if mapping_file:
-        mapping_raw = mapping_file.getvalue().decode("utf-8")
 
-    return sas_code, mapping_raw
-
+# ── input previews ────────────────────────────────────────────────────────────
 
 def render_sas_preview(sas_code: str):
-    """Collapsible preview of uploaded SAS code."""
     with st.expander(f"SAS Script Preview ({len(sas_code):,} chars)", expanded=False):
         st.code(sas_code[:3000] + ("\n..." if len(sas_code) > 3000 else ""), language="sql")
 
 
 def render_mapping_preview(mapping_raw: str):
-    """Collapsible preview of mapping file."""
     try:
         data = json.loads(mapping_raw)
         with st.expander(f"Column Mapping Preview ({len(data)} entries)", expanded=False):
@@ -50,8 +42,9 @@ def render_mapping_preview(mapping_raw: str):
         st.warning("Could not parse mapping file as JSON.")
 
 
+# ── pipeline step containers ──────────────────────────────────────────────────
+
 def render_pipeline_steps():
-    """Create placeholder containers for each pipeline step. Returns dict of containers."""
     from ui.runner import STEP_ORDER, STEP_LABELS
     containers = {}
     for step in STEP_ORDER:
@@ -60,23 +53,20 @@ def render_pipeline_steps():
     return containers
 
 
+# ── step detail panels ────────────────────────────────────────────────────────
+
 def render_analyzer_detail(analysis: SASAnalysis):
-    """Expandable detail view of analyzer output."""
     with st.expander("Analyzer Detail", expanded=False):
         tab1, tab2, tab3, tab4 = st.tabs(["Source Tables", "Intermediates", "Transforms", "Summary"])
-
         with tab1:
             for t in analysis.source_tables:
                 st.markdown(f"**{t.table}** ({t.access_method}) — {len(t.columns_used)} cols")
-
         with tab2:
             for t in analysis.intermediate_tables:
                 st.markdown(f"**{t.table}** — {t.logic_summary[:100]}")
-
         with tab3:
             for b in analysis.transformation_blocks:
                 st.markdown(f"**{b.name}** [{b.type}] → `{b.output_table}`")
-
         with tab4:
             st.write(analysis.logic_summary)
             if analysis.complexity_notes:
@@ -86,34 +76,28 @@ def render_analyzer_detail(analysis: SASAnalysis):
 
 
 def render_resolver_detail(resolved: ResolvedMappings):
-    """Expandable detail view of resolver output."""
     with st.expander("Resolver Detail", expanded=False):
         tab1, tab2, tab3 = st.tabs(["Resolved", "Unresolved", "Warnings"])
-
         with tab1:
             for t in resolved.tables:
                 st.markdown(f"`{t.original_table}` → `{t.resolved_schema}.{t.resolved_table}` ({len(t.column_mappings)} cols)")
-
         with tab2:
             if resolved.unresolved_tables:
                 for t in resolved.unresolved_tables:
                     st.markdown(f"❌ `{t}`")
             else:
                 st.success("All tables resolved.")
-
         with tab3:
             for w in resolved.warnings:
                 st.markdown(f"⚠️ {w}")
 
 
 def render_review_detail(review: ReviewResult):
-    """Expandable detail view of reviewer output."""
     with st.expander("Reviewer Detail", expanded=False):
         if review.is_valid:
             st.success(review.summary)
         else:
             st.warning(review.summary)
-
         for issue in review.issues:
             icon = "🔴" if issue.severity == "error" else "🟡"
             st.markdown(f"{icon} **{issue.file}**: {issue.issue}")
@@ -121,18 +105,156 @@ def render_review_detail(review: ReviewResult):
                 st.caption(f"Fix: {issue.fix_suggestion}")
 
 
+# ── documenter output ─────────────────────────────────────────────────────────
+
+def render_documentation(sas_documentation: str | None):
+    """Render the generated markdown documentation with a download button."""
+    st.subheader("📄 Pipeline Documentation")
+
+    if not sas_documentation:
+        # Try reading from disk as fallback
+        raw = _read_doc_file("sas_documentation.md")
+        if raw:
+            sas_documentation = raw.decode("utf-8")
+
+    if not sas_documentation:
+        st.info("No documentation generated for this run.")
+        return
+
+    # Preview in a styled expander
+    with st.expander("View Documentation", expanded=True):
+        # Render markdown natively — Streamlit handles headers, tables, bullets
+        st.markdown(sas_documentation)
+
+    # Download button
+    st.download_button(
+        label="⬇️ Download Documentation (.md)",
+        data=sas_documentation.encode("utf-8"),
+        file_name="pipeline_documentation.md",
+        mime="text/markdown",
+        use_container_width=False,
+    )
+
+
+# ── sttm output ───────────────────────────────────────────────────────────────
+
+def render_sttm(sttm_data: dict | None):
+    """Render STTM as interactive tables in the UI, with an Excel download button."""
+    st.subheader("🗺️ Source-to-Target Mapping (STTM)")
+
+    # Try reading Excel from disk for download regardless of whether sttm_data is present
+    excel_bytes = _read_doc_file("sttm.xlsx")
+
+    if not sttm_data:
+        if excel_bytes:
+            st.info("STTM data not in session state — showing download only.")
+            st.download_button(
+                label="⬇️ Download STTM (.xlsx)",
+                data=excel_bytes,
+                file_name="sttm.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=False,
+            )
+        else:
+            st.info("No STTM generated for this run.")
+        return
+
+    tabs_data = sttm_data.get("tabs", [])
+    if not tabs_data:
+        st.info("STTM generated but contains no tabs.")
+        return
+
+    # Metrics row — one metric per output table
+    metric_cols = st.columns(min(len(tabs_data), 4))
+    for i, tab in enumerate(tabs_data):
+        metric_cols[i % 4].metric(
+            label=tab.get("tab_name", f"Tab {i+1}"),
+            value=f"{len(tab.get('rows', []))} rows",
+        )
+
+    st.divider()
+
+    # One Streamlit tab per output table
+    if len(tabs_data) == 1:
+        _render_sttm_tab(tabs_data[0])
+    else:
+        tab_labels = [t.get("tab_name", f"Tab {i+1}") for i, t in enumerate(tabs_data)]
+        st_tabs    = st.tabs(tab_labels)
+        for st_tab, sttm_tab in zip(st_tabs, tabs_data):
+            with st_tab:
+                _render_sttm_tab(sttm_tab)
+
+    # Download button
+    if excel_bytes:
+        st.download_button(
+            label="⬇️ Download STTM (.xlsx)",
+            data=excel_bytes,
+            file_name="sttm.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=False,
+        )
+    else:
+        st.caption("Excel file not found on disk — run the pipeline to regenerate.")
+
+
+def _render_sttm_tab(tab: dict):
+    """Render a single STTM tab as a styled dataframe."""
+    import pandas as pd
+
+    desc = tab.get("description", "")
+    if desc:
+        st.caption(desc)
+
+    rows = tab.get("rows", [])
+    if not rows:
+        st.info("No rows in this tab.")
+        return
+
+    COLUMNS = [
+        "target_schema", "target_table", "target_column", "target_data_type",
+        "transformation_rule",
+        "source_schema", "source_table", "source_column", "source_data_type",
+        "additional_comments",
+    ]
+    DISPLAY_HEADERS = [
+        "Target Schema", "Target Table", "Target Column", "Target Type",
+        "Transformation Rule",
+        "Source Schema", "Source Table", "Source Column", "Source Type",
+        "Comments",
+    ]
+
+    df = pd.DataFrame(rows)
+    for col in COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[COLUMNS]
+    df.columns = DISPLAY_HEADERS
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Transformation Rule": st.column_config.TextColumn(width="large"),
+            "Comments":            st.column_config.TextColumn(width="medium"),
+            "Target Column":       st.column_config.TextColumn(width="medium"),
+            "Source Column":       st.column_config.TextColumn(width="medium"),
+        },
+    )
+
+
+# ── generated dbt files ───────────────────────────────────────────────────────
+
 def render_generated_files(project: DbtProject):
-    """Tabbed view of generated dbt files with download."""
     st.subheader("Generated dbt Files")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Models", len(project.models))
-    col2.metric("Macros", len(project.macros))
+    col1.metric("Models",        len(project.models))
+    col2.metric("Macros",        len(project.macros))
     col3.metric("Not Converted", len(project.not_converted))
-    col4.metric("Total Files", len(project.models) + len(project.macros) + 3)
+    col4.metric("Total Files",   len(project.models) + len(project.macros) + 3)
 
-    all_files = []
-
+    all_files: list[tuple[str, str]] = []
     if project.dbt_project_yml:
         all_files.append(("dbt_project.yml", project.dbt_project_yml))
     if project.sources_yml:
@@ -144,24 +266,18 @@ def render_generated_files(project: DbtProject):
     for m in project.macros:
         all_files.append((m.path, m.content))
     if project.not_converted:
-        nc_content = "# Blocks Not Converted to dbt\n\n" + "\n".join(f"- {item}" for item in project.not_converted)
-        all_files.append(("NOT_CONVERTED.md", nc_content))
+        nc = "# Blocks Not Converted to dbt\n\n" + "\n".join(f"- {i}" for i in project.not_converted)
+        all_files.append(("NOT_CONVERTED.md", nc))
 
-    categories = {"staging": [], "intermediate": [], "marts": [], "macros": [], "config": []}
+    categories: dict[str, list] = {"staging": [], "intermediate": [], "marts": [], "macros": [], "config": []}
     for path, content in all_files:
-        if "staging" in path:
-            categories["staging"].append((path, content))
-        elif "intermediate" in path:
-            categories["intermediate"].append((path, content))
-        elif "marts" in path:
-            categories["marts"].append((path, content))
-        elif "macros" in path:
-            categories["macros"].append((path, content))
-        else:
-            categories["config"].append((path, content))
+        if "staging"      in path: categories["staging"].append((path, content))
+        elif "intermediate" in path: categories["intermediate"].append((path, content))
+        elif "marts"        in path: categories["marts"].append((path, content))
+        elif "macros"       in path: categories["macros"].append((path, content))
+        else:                        categories["config"].append((path, content))
 
     tabs = st.tabs(["Config/YAML", "Staging", "Intermediate", "Marts", "Macros", "Not Converted"])
-
     tab_map = [
         (tabs[0], categories["config"]),
         (tabs[1], categories["staging"]),
@@ -169,16 +285,15 @@ def render_generated_files(project: DbtProject):
         (tabs[3], categories["marts"]),
         (tabs[4], categories["macros"]),
     ]
-
     for tab, files in tab_map:
         with tab:
             if not files:
                 st.info("No files in this category.")
                 continue
-            file_names = [f[0].split("/")[-1] for f in files]
-            selected = st.selectbox("Select file", file_names, key=f"select_{id(tab)}")
-            idx = file_names.index(selected)
-            lang = "yaml" if files[idx][0].endswith(".yml") else "sql"
+            names    = [f[0].split("/")[-1] for f in files]
+            selected = st.selectbox("Select file", names, key=f"sel_{id(tab)}")
+            idx      = names.index(selected)
+            lang     = "yaml" if files[idx][0].endswith(".yml") else "sql"
             st.code(files[idx][1], language=lang)
 
     with tabs[5]:
@@ -188,24 +303,24 @@ def render_generated_files(project: DbtProject):
         else:
             st.success("Everything was converted.")
 
-    zip_buffer = _create_zip(all_files)
+    # Download button
     st.download_button(
-        label="⬇️ Download dbt Project (ZIP)",
-        data=zip_buffer,
+        label="⬇️ Download dbt Project (.zip)",
+        data=_create_zip(all_files),
         file_name="dbt_project.zip",
         mime="application/zip",
     )
 
 
-def render_cost_summary(cost_data: dict):
-    """Render cost and token usage."""
-    st.subheader("Cost Summary")
+# ── cost summary ──────────────────────────────────────────────────────────────
 
+def render_cost_summary(cost_data: dict):
+    st.subheader("Cost Summary")
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Cost", f"${cost_data['cost']['total_cost_usd']:.4f}")
-    col2.metric("Input Tokens", f"{cost_data['cost']['total_input_tokens']:,}")
-    col3.metric("Output Tokens", f"{cost_data['cost']['total_output_tokens']:,}")
-    col4.metric("LLM Calls", cost_data['cost']['calls'])
+    col1.metric("Total Cost",     f"${cost_data['cost']['total_cost_usd']:.4f}")
+    col2.metric("Input Tokens",   f"{cost_data['cost']['total_input_tokens']:,}")
+    col3.metric("Output Tokens",  f"{cost_data['cost']['total_output_tokens']:,}")
+    col4.metric("LLM Calls",      cost_data['cost']['calls'])
 
     with st.expander("Per-Step Breakdown", expanded=False):
         for entry in cost_data["usage"]:
@@ -214,13 +329,3 @@ def render_cost_summary(cost_data: dict):
             cols[1].write(f"In: {entry['input_tokens']:,}")
             cols[2].write(f"Out: {entry['output_tokens']:,}")
             cols[3].write(f"${entry['cost_usd']:.4f}")
-
-
-def _create_zip(files: list[tuple[str, str]]) -> bytes:
-    """Create in-memory ZIP from list of (path, content) tuples."""
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for path, content in files:
-            zf.writestr(path, content)
-    buf.seek(0)
-    return buf.getvalue()

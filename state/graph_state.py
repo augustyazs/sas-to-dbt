@@ -7,22 +7,22 @@ from models.schemas import (
     DbtConventions,
     ReviewResult,
     MigrationPlan,
-    ArchitectReview,
 )
 
 
 class GraphState(TypedDict, total=False):
-    sas_code_raw: str
-    sas_code_clean: str
-    ingestion_blocks: list[str]
-    column_mappings: list[ColumnMapping]
-    conventions: DbtConventions
-    analysis: SASAnalysis
+    sas_code_raw:      str
+    sas_code_clean:    str
+    ingestion_blocks:  list[str]
+    column_mappings:   list[ColumnMapping]
+    conventions:       DbtConventions
+    analysis:          SASAnalysis
     resolved_mappings: ResolvedMappings
-    migration_plan: MigrationPlan
-    architect_review: ArchitectReview
-    dbt_project: DbtProject
-    review: ReviewResult
-    review_count: int
-    status: str
-    error: str
+    migration_plan:    MigrationPlan
+    dbt_project:       DbtProject
+    review:            ReviewResult
+    review_count:      int
+    status:            str
+    error:             str
+    sas_documentation: str
+    sttm_data:         dict

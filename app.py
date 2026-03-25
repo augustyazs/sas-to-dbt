@@ -12,6 +12,8 @@ from ui.components import (
     render_resolver_detail,
     render_review_detail,
     render_generated_files,
+    render_documentation,      # NEW
+    render_sttm,               # NEW
     render_cost_summary,
 )
 from ui.runner import run_pipeline
@@ -30,14 +32,12 @@ st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
     div[data-testid="stMetric"] {
-    background: #f8f9fa;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
     }
-    div[data-testid="stMetric"] label {
-        color: #333 !important;
-    }
+    div[data-testid="stMetric"] label { color: #333 !important; }
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
         color: #1a1a1a !important;
         font-weight: 700;
@@ -46,21 +46,27 @@ st.markdown("""
     .zs-header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
     .zs-header img { height: 40px; }
     .zs-header h1 { font-size: 28px; font-weight: 700; margin: 0; }
-    .zs-header p { font-size: 14px; color: #888; margin: 0; }
-    .log-box { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px;
-               font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto;
-               border: 1px solid #334155; white-space: pre-wrap; }
-    .human-review-alert { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px;
-                          padding: 16px; margin: 12px 0; }
+    .zs-header p  { font-size: 14px; color: #888; margin: 0; }
+    .log-box {
+        background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px;
+        font-family: monospace; font-size: 12px; max-height: 400px; overflow-y: auto;
+        border: 1px solid #334155; white-space: pre-wrap;
+    }
+    .human-review-alert {
+        background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px;
+        padding: 16px; margin: 12px 0;
+    }
     .human-review-alert h3 { color: #92400e; margin: 0 0 8px 0; }
-    .human-review-alert p { color: #78350f; margin: 4px 0; font-size: 14px; }
+    .human-review-alert p  { color: #78350f; margin: 4px 0; font-size: 14px; }
 </style>
 """, unsafe_allow_html=True)
 
 logo_path = Path(__file__).parent / "assests" / "zs_logo.png"
 if logo_path.exists():
-    logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
+    logo_b64   = base64.b64encode(logo_path.read_bytes()).decode()
     ZS_LOGO_URL = f"data:image/png;base64,{logo_b64}"
+else:
+    ZS_LOGO_URL = ""
 
 st.markdown(f"""
 <div class="zs-header">
@@ -73,15 +79,13 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# === SIDEBAR ===
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Configuration")
 
     st.subheader("API Key")
     api_key_input = st.text_input(
-        "OpenAI API Key",
-        type="password",
-        placeholder="sk-...",
+        "OpenAI API Key", type="password", placeholder="sk-...",
         help="Not stored anywhere. Lives only in your browser session.",
     )
     if api_key_input:
@@ -89,50 +93,25 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Source Control")
-
-    source_platform = st.selectbox(
-        "Platform",
-        ["GitHub", "Bitbucket"],
-        key="source_platform"
-    )
-
-    repo_name = st.selectbox(
-        "Repository",
+    source_platform = st.selectbox("Platform", ["GitHub", "Bitbucket"], key="source_platform")
+    repo_name       = st.selectbox("Repository",
         ["hpp-analytics/sas-to-dbt", "hpp-analytics/dx-data-pipeline", "hpp-analytics/rx-etl"],
-        key="repo_name"
-    )
-
-    folder_name = st.selectbox(
-        "Input Folder",
+        key="repo_name")
+    folder_name     = st.selectbox("Input Folder",
         ["sas_scripts_input_20260301", "sas_scripts_input_20260215", "sas_scripts_input_20260128"],
-        key="folder_name"
-    )
-
+        key="folder_name")
     st.caption(f"📁 {source_platform} / {repo_name} / {folder_name}")
 
     st.divider()
     st.subheader("Output")
-
-    output_platform = st.selectbox(
-        "Platform",
-        ["GitHub", "Bitbucket"],
-        key="output_platform"
-    )
-
-    output_repo = st.selectbox(
-        "Repository",
+    output_platform = st.selectbox("Platform", ["GitHub", "Bitbucket"], key="output_platform")
+    output_repo     = st.selectbox("Repository",
         ["hpp-analytics/dbt-pharmacy-models", "hpp-analytics/dbt-rx-warehouse", "hpp-analytics/sas-to-dbt"],
-        key="output_repo"
-    )
-
-    output_branch = st.selectbox(
-        "Branch",
-        ["feature/sas-migration", "develop", "main"],
-        key="output_branch"
-    )
-
+        key="output_repo")
+    output_branch   = st.selectbox("Branch",
+        ["feature/sas-migration", "develop", "main"], key="output_branch")
     st.caption(f"📦 {output_platform} / {output_repo} / {output_branch}")
-    
+
     st.divider()
     st.subheader("About")
     st.markdown("""
@@ -140,13 +119,16 @@ with st.sidebar:
     1. **Preprocessor** — Strip ingestion/reporting
     2. **Analyzer** — Parse SAS, extract metadata
     3. **Resolver** — Map on-prem → cloud names
-    4. **Generator** — Produce dbt project
-    5. **Reviewer** — Validate logic parity
+    4. **Documenter** — Generate business documentation
+    5. **STTM** — Build source-to-target mapping
+    6. **Architect** — Plan dbt model structure
+    7. **Developer** — Generate dbt project
+    8. **Reviewer** — Validate logic parity & fix
     """)
 
 
-# === HELPER: scan input folders ===
-SAS_DIR = INPUTS_DIR / "sas_scripts"
+# ── INPUT SCANNING HELPERS ────────────────────────────────────────────────────
+SAS_DIR     = INPUTS_DIR / "sas_scripts"
 MAPPING_DIR = INPUTS_DIR / "column_mapping"
 
 def get_sas_files():
@@ -160,28 +142,29 @@ def get_mapping_files():
     return []
 
 
-# === INPUTS SECTION ===
+# ── INPUTS ────────────────────────────────────────────────────────────────────
 st.header("📂 Inputs")
 
-sas_code = None
+sas_code    = None
 mapping_raw = None
 
 tab_select, tab_upload = st.tabs(["Select from Git Repo", "Upload Files"])
 
 with tab_select:
     col1, col2 = st.columns(2)
-
     with col1:
         sas_files = get_sas_files()
         if sas_files:
-            selected_sas = st.selectbox("Select SAS Script from Git Repo Inputs folder ", ["-- select --"] + sas_files, key="sas_select")
+            selected_sas = st.selectbox(
+                "Select SAS Script from Git Repo Inputs folder",
+                ["-- select --"] + sas_files, key="sas_select",
+            )
             if selected_sas != "-- select --":
                 sas_path = SAS_DIR / selected_sas
                 for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
                     try:
                         sas_code = sas_path.read_text(encoding=enc)
-                        if sas_code.strip():
-                            break
+                        if sas_code.strip(): break
                     except (UnicodeDecodeError, ValueError):
                         continue
         else:
@@ -190,60 +173,57 @@ with tab_select:
     with col2:
         mapping_files = get_mapping_files()
         if mapping_files:
-            selected_mapping = st.selectbox("Select Column Mapping", ["-- select --"] + mapping_files, key="map_select")
+            selected_mapping = st.selectbox(
+                "Select Column Mapping", ["-- select --"] + mapping_files, key="map_select",
+            )
             if selected_mapping != "-- select --":
                 mapping_path = MAPPING_DIR / selected_mapping
-                mapping_raw = mapping_path.read_text(encoding="utf-8")
+                mapping_raw  = mapping_path.read_text(encoding="utf-8")
         else:
             st.info("No .json mapping files found in inputs/")
 
 with tab_upload:
     col1, col2 = st.columns(2)
-
     with col1:
         sas_file = st.file_uploader("Upload SAS Script", type=["sas", "txt"], key="sas_upload")
         if sas_file:
             for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
                 try:
                     sas_code = sas_file.getvalue().decode(enc)
-                    if sas_code.strip():
-                        break
+                    if sas_code.strip(): break
                 except (UnicodeDecodeError, ValueError):
                     continue
-
     with col2:
         mapping_file = st.file_uploader("Upload Column Mapping", type=["json", "csv"], key="mapping_upload")
         if mapping_file:
             mapping_raw = mapping_file.getvalue().decode("utf-8")
 
-if sas_code:
-    render_sas_preview(sas_code)
-if mapping_raw:
-    render_mapping_preview(mapping_raw)
+if sas_code:    render_sas_preview(sas_code)
+if mapping_raw: render_mapping_preview(mapping_raw)
 
 
-# === RUN ===
+# ── RUN BUTTON ────────────────────────────────────────────────────────────────
 can_run = sas_code is not None and mapping_raw is not None and bool(api_key_input)
 
 if not can_run:
     missing = []
-    if not sas_code:
-        missing.append("SAS script")
-    if not mapping_raw:
-        missing.append("column mapping")
-    if not api_key_input:
-        missing.append("API key (sidebar)")
+    if not sas_code:    missing.append("SAS script")
+    if not mapping_raw: missing.append("column mapping")
+    if not api_key_input: missing.append("API key (sidebar)")
     st.info(f"Missing: {', '.join(missing)}")
 
 col_run, col_status = st.columns([1, 4])
 with col_run:
-    run_clicked = st.button("🚀 Run Pipeline", disabled=not can_run, type="primary", use_container_width=True)
+    run_clicked = st.button(
+        "🚀 Run Pipeline", disabled=not can_run,
+        type="primary", use_container_width=True,
+    )
 
 if run_clicked and can_run:
     try:
         mapping_data = json.loads(mapping_raw)
         col_mappings = [ColumnMapping(**entry) for entry in mapping_data]
-    except (json.JSONDecodeError, Exception) as e:
+    except Exception as e:
         st.error(f"Failed to parse mapping file: {e}")
         st.stop()
 
@@ -251,7 +231,7 @@ if run_clicked and can_run:
 
     st.header("⚙️ Pipeline Progress")
     status_container = st.empty()
-    step_containers = render_pipeline_steps()
+    step_containers  = render_pipeline_steps()
 
     with st.spinner("Running pipeline..."):
         final_state, cost_data = run_pipeline(
@@ -266,7 +246,7 @@ if run_clicked and can_run:
         st.error("Pipeline failed. Check logs for details.")
         st.stop()
 
-    # === HUMAN REVIEW ALERTS ===
+    # ── HUMAN REVIEW ALERTS ───────────────────────────────────────────────────
     st.divider()
     _show_human_review = False
 
@@ -295,14 +275,15 @@ if run_clicked and can_run:
                     <h3>👤 Human Review Required — Logic Parity Issues</h3>
                     <p><b>The following errors were not resolved after max retry attempts:</b></p>
                     <p>{error_details}</p>
-                    <p>Please review the generated files and correct manually, or provide additional business rules and re-run.</p>
+                    <p>Please review the generated files and correct manually, or provide additional
+                    business rules and re-run.</p>
                 </div>
                 """, unsafe_allow_html=True)
 
     if not _show_human_review:
         st.success("✅ No human review required — all checks passed.")
 
-    # === STEP DETAILS ===
+    # ── STEP DETAILS ─────────────────────────────────────────────────────────
     st.divider()
     st.header("🔍 Step Details")
     if final_state.get("analysis"):
@@ -312,10 +293,22 @@ if run_clicked and can_run:
     if final_state.get("review"):
         render_review_detail(final_state["review"])
 
-    # === LOGS ===
+    # ── DOCUMENTATION ─────────────────────────────────────────────────────────
+    st.divider()
+    render_documentation(final_state.get("sas_documentation"))
+
+    # ── STTM ──────────────────────────────────────────────────────────────────
+    st.divider()
+    render_sttm(final_state.get("sttm_data"))
+
+    # ── GENERATED DBT FILES ───────────────────────────────────────────────────
+    st.divider()
+    if final_state.get("dbt_project"):
+        render_generated_files(final_state["dbt_project"])
+
+    # ── LOGS ──────────────────────────────────────────────────────────────────
     st.divider()
     st.header("📝 Pipeline Logs")
-
     log_files = get_current_run_logs()
     if log_files:
         log_tabs = st.tabs([f.stem for f in log_files])
@@ -323,24 +316,25 @@ if run_clicked and can_run:
             with tab:
                 try:
                     log_content = json.loads(log_file.read_text(encoding="utf-8"))
-                    st.markdown(f'<div class="log-box">{json.dumps(log_content, indent=2)}</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="log-box">{json.dumps(log_content, indent=2)}</div>',
+                        unsafe_allow_html=True,
+                    )
                 except Exception:
                     raw = log_file.read_text(encoding="utf-8")
-                    st.markdown(f'<div class="log-box">{raw[:5000]}</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="log-box">{raw[:5000]}</div>',
+                        unsafe_allow_html=True,
+                    )
     else:
         st.info("No logs generated for this run.")
 
-    # === GENERATED FILES ===
-    st.divider()
-    if final_state.get("dbt_project"):
-        render_generated_files(final_state["dbt_project"])
-
-    # === COST ===
+    # ── COST ──────────────────────────────────────────────────────────────────
     st.divider()
     if cost_data:
         render_cost_summary(cost_data)
 
-    # === FINAL STATUS ===
+    # ── FINAL STATUS ──────────────────────────────────────────────────────────
     final_status = final_state.get("status", "unknown")
     if final_status in ("done", "complete", "complete_with_warnings"):
         st.success(f"✅ Pipeline completed — Status: {final_status}")

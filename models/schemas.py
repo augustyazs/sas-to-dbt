@@ -129,6 +129,7 @@ class DbtConventions(BaseModel):
     max_joins_per_model: int = 8
     notes: list[str] = []
 
+
 class PlannedModel(BaseModel):
     name: str
     layer: str = ""
@@ -150,9 +151,3 @@ class MigrationPlan(BaseModel):
     edge_cases: list[EdgeCase] = []
     dependency_order: list[str] = []
     notes: list[str] = []
-
-
-class ArchitectReview(BaseModel):
-    approved: bool
-    structural_issues: list[dict] = []
-    summary: str = ""
