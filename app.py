@@ -219,7 +219,13 @@ run_clicked = st.button(
     type="primary", use_container_width=False,
 )
 
-if not run_clicked:
+# Persist run state across Streamlit re-renders
+if run_clicked:
+    st.session_state["pipeline_triggered"] = True
+    st.session_state["pipeline_result"]    = None
+    st.session_state["pipeline_cost"]      = None
+
+if not st.session_state.get("pipeline_triggered"):
     st.stop()
 
 # ── PARSE INPUTS ──────────────────────────────────────────────────────────────
@@ -227,6 +233,7 @@ try:
     col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
 except Exception as e:
     st.error(f"Failed to parse mapping file: {e}")
+    st.session_state["pipeline_triggered"] = False
     st.stop()
 
 conventions = DbtConventions()
@@ -243,18 +250,27 @@ with col_main:
     st.markdown("### 📋 Pipeline Outputs")
     output_sections = render_output_sections()
 
-# ── RUN ───────────────────────────────────────────────────────────────────────
-final_state, cost_data = run_pipeline(
-    sas_code=sas_code,
-    mappings=col_mappings,
-    conventions=conventions,
-    timeline_containers=timeline_containers,
-    loop_area=loop_area,
-)
+# ── RUN (only on the triggering render, not on re-renders) ───────────────────
+if run_clicked or st.session_state.get("pipeline_result") is None:
+    final_state, cost_data = run_pipeline(
+        sas_code=sas_code,
+        mappings=col_mappings,
+        conventions=conventions,
+        timeline_containers=timeline_containers,
+        loop_area=loop_area,
+    )
 
-if final_state is None:
-    st.error("Pipeline failed. Check logs for details.")
-    st.stop()
+    if final_state is None:
+        st.error("Pipeline failed. Check logs for details.")
+        st.session_state["pipeline_triggered"] = False
+        st.stop()
+
+    # Persist results so re-renders can access them without re-running
+    st.session_state["pipeline_result"] = final_state
+    st.session_state["pipeline_cost"]   = cost_data
+else:
+    final_state = st.session_state["pipeline_result"]
+    cost_data   = st.session_state["pipeline_cost"]
 
 # ── FILL OUTPUT SECTIONS ──────────────────────────────────────────────────────
 log_files    = get_current_run_logs()
