@@ -214,31 +214,41 @@ if not can_run:
     if not api_key_input: missing.append("API key (sidebar)")
     st.info(f"Missing: {', '.join(missing)}")
 
+# ── RUN BUTTON ────────────────────────────────────────────────────────────────
+can_run = sas_code is not None and mapping_raw is not None and bool(api_key_input)
+
+if not can_run:
+    missing = []
+    if not sas_code:      missing.append("SAS script")
+    if not mapping_raw:   missing.append("column mapping")
+    if not api_key_input: missing.append("API key (sidebar)")
+    st.info(f"Missing: {', '.join(missing)}")
+
 run_clicked = st.button(
     "🚀 Run Pipeline", disabled=not can_run,
     type="primary", use_container_width=False,
 )
 
-# Persist run state across Streamlit re-renders
 if run_clicked:
-    st.session_state["pipeline_triggered"] = True
-    st.session_state["pipeline_result"]    = None
-    st.session_state["pipeline_cost"]      = None
+    # Clear any previous run results when a new run is triggered
+    st.session_state["pipeline_done"]   = False
+    st.session_state["pipeline_result"] = None
+    st.session_state["pipeline_cost"]   = None
 
-if not st.session_state.get("pipeline_triggered"):
+# ── Nothing to show yet — don't render the layout at all ─────────────────────
+if not run_clicked and not st.session_state.get("pipeline_done"):
     st.stop()
 
 # ── PARSE INPUTS ──────────────────────────────────────────────────────────────
-try:
-    col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
-except Exception as e:
-    st.error(f"Failed to parse mapping file: {e}")
-    st.session_state["pipeline_triggered"] = False
-    st.stop()
+if run_clicked:
+    try:
+        col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
+    except Exception as e:
+        st.error(f"Failed to parse mapping file: {e}")
+        st.stop()
+    conventions = DbtConventions()
 
-conventions = DbtConventions()
-
-# ── TWO-COLUMN LAYOUT: center = outputs, right = pipeline progress ────────────
+# ── TWO-COLUMN LAYOUT ─────────────────────────────────────────────────────────
 st.divider()
 col_main, col_progress = st.columns([3, 1])
 
@@ -250,8 +260,8 @@ with col_main:
     st.markdown("### 📋 Pipeline Outputs")
     output_sections = render_output_sections()
 
-# ── RUN (only on the triggering render, not on re-renders) ───────────────────
-if run_clicked or st.session_state.get("pipeline_result") is None:
+# ── EXECUTE PIPELINE (only on the run_clicked render) ────────────────────────
+if run_clicked:
     final_state, cost_data = run_pipeline(
         sas_code=sas_code,
         mappings=col_mappings,
@@ -262,15 +272,21 @@ if run_clicked or st.session_state.get("pipeline_result") is None:
 
     if final_state is None:
         st.error("Pipeline failed. Check logs for details.")
-        st.session_state["pipeline_triggered"] = False
         st.stop()
 
-    # Persist results so re-renders can access them without re-running
+    # Store results — subsequent re-renders read from here, never re-run pipeline
+    st.session_state["pipeline_done"]   = True
     st.session_state["pipeline_result"] = final_state
     st.session_state["pipeline_cost"]   = cost_data
-else:
-    final_state = st.session_state["pipeline_result"]
-    cost_data   = st.session_state["pipeline_cost"]
+
+# ── READ RESULTS (all renders after the first, including final re-render) ─────
+final_state = st.session_state.get("pipeline_result") or {}
+cost_data   = st.session_state.get("pipeline_cost")
+
+if not final_state:
+    # Pipeline layout is visible but results aren't ready yet —
+    # this shouldn't normally be reached but acts as a safety net
+    st.stop()
 
 # ── FILL OUTPUT SECTIONS ──────────────────────────────────────────────────────
 log_files    = get_current_run_logs()
