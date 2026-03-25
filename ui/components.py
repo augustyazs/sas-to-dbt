@@ -23,6 +23,108 @@ def _create_zip(files: list[tuple[str, str]]) -> bytes:
     return buf.getvalue()
 
 
+def _fmt_time(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    m = int(seconds // 60)
+    s = seconds % 60
+    return f"{m}m {s:.0f}s"
+
+
+# ── Pipeline Progress ─────────────────────────────────────────────────────────
+
+_SECTION_LABELS = {
+    "agents":    "🤖  Agents",
+    "review":    "🔄  Reviewer / Fixer",
+    "documents": "📄  Documents",
+}
+
+_STATUS_META = {
+    "pending": ("Not Started", "pending"),
+    "running": ("In Progress", "running"),
+    "done":    ("Completed",   "done"),
+    "error":   ("Error",       "error"),
+}
+
+
+def render_pipeline_progress(slot, steps: list[dict], write_output_status: str = "pending"):
+    """Render the timeline-style pipeline progress panel into an st.empty() slot."""
+
+    if not steps and write_output_status == "pending":
+        slot.markdown(
+            '<div style="color:#475569;font-size:13px;padding:8px 0;">'
+            'Pipeline not started.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    # Group steps by section, preserving insertion order
+    seen_sections: list[str] = []
+    sections: dict[str, list[dict]] = {}
+    for step in steps:
+        sec = step.get("section", "agents")
+        if sec not in sections:
+            sections[sec] = []
+            seen_sections.append(sec)
+        sections[sec].append(step)
+
+    html = '<div class="progress-header">⚙️ Pipeline Progress</div>'
+
+    total_steps_rendered = sum(len(v) for v in sections.values())
+    rendered_count = 0
+
+    for sec_key in seen_sections:
+        sec_steps = sections[sec_key]
+        sec_label = _SECTION_LABELS.get(sec_key, sec_key)
+        html += f'<div class="progress-section-label">{sec_label}</div>'
+
+        for i, step in enumerate(sec_steps):
+            status    = step.get("status", "pending")
+            label     = step.get("label", step.get("key", ""))
+            elapsed   = step.get("elapsed")
+            meta_text, meta_cls = _STATUS_META.get(status, ("Not Started", "pending"))
+
+            # Time override for running/done
+            if elapsed is not None:
+                meta_text = f"Completed &nbsp;·&nbsp; {_fmt_time(elapsed)}"
+            elif status == "running":
+                meta_text = "In Progress…"
+
+            rendered_count += 1
+            is_last = (rendered_count == total_steps_rendered)
+
+            # Determine line colour based on next step
+            line_cls = "done" if status == "done" else ("running" if status == "running" else "")
+
+            html += f"""
+<div class="tl-row">
+  <div class="tl-dot-col">
+    <div class="tl-dot {status}"></div>
+    {'<div class="tl-line ' + line_cls + '"></div>' if not is_last else ''}
+  </div>
+  <div class="tl-text">
+    <div class="tl-label {status}">{label}</div>
+    <div class="tl-meta {meta_cls}">{meta_text}</div>
+  </div>
+</div>"""
+
+    # Write Output bar at the bottom
+    wo_label = {
+        "pending": "○ &nbsp; Write Output",
+        "running": "◉ &nbsp; Writing output…",
+        "done":    "✓ &nbsp; dbt output generated successfully",
+    }.get(write_output_status, "○ &nbsp; Write Output")
+
+    html += f'<div class="wo-bar {write_output_status}">{wo_label}</div>'
+
+    slot.markdown(html, unsafe_allow_html=True)
+
+
+# ── kept for import compatibility ─────────────────────────────────────────────
+def render_pipeline_steps():
+    return {}
+
+
 # ── input previews ────────────────────────────────────────────────────────────
 
 def render_sas_preview(sas_code: str):
@@ -39,33 +141,6 @@ def render_mapping_preview(mapping_raw: str):
                 st.caption(f"...and {len(data) - 10} more entries")
     except json.JSONDecodeError:
         st.warning("Could not parse mapping file as JSON.")
-
-
-# ── pipeline step containers ──────────────────────────────────────────────────
-
-def render_pipeline_steps():
-    """Create containers for each fixed pipeline step plus a dynamic review area.
-    Returns step_containers dict — same interface as the last working version,
-    plus '_review_area' key for the reviewer/fixer loop.
-    """
-    from ui.runner import STEP_ORDER, STEP_LABELS
-    containers = {}
-
-    for step in STEP_ORDER:
-        # Insert reviewer/fixer loop area between generator and write_output
-        if step == "write_output":
-            st.markdown(
-                "<p style='font-size:12px;color:#888;margin:4px 0 2px 0;'>"
-                "🔄 Reviewer / Fixer</p>",
-                unsafe_allow_html=True,
-            )
-            containers["_review_area"] = st.container()
-            st.markdown("<div style='margin-top:2px'></div>", unsafe_allow_html=True)
-
-        containers[step] = st.empty()
-        containers[step].info(f"⬜ {STEP_LABELS[step]} pending")
-
-    return containers
 
 
 # ── step detail panels ────────────────────────────────────────────────────────
@@ -126,8 +201,6 @@ def render_review_detail(review: ReviewResult):
 # ── documentation ─────────────────────────────────────────────────────────────
 
 def render_documentation(sas_documentation: str | None):
-    st.subheader("📄 Pipeline Documentation")
-
     if not sas_documentation:
         raw = _read_doc_file("sas_documentation.md")
         if raw:
@@ -151,8 +224,6 @@ def render_documentation(sas_documentation: str | None):
 # ── sttm ──────────────────────────────────────────────────────────────────────
 
 def render_sttm(sttm_data: dict | None):
-    st.subheader("🗺️ Source-to-Target Mapping (STTM)")
-
     excel_bytes = _read_doc_file("sttm.xlsx")
 
     if not sttm_data:
@@ -216,7 +287,7 @@ def _render_sttm_tab(tab: dict):
         "Comments",
     ]
 
-    df = pd.DataFrame(rows)
+    df = __import__("pandas").DataFrame(rows)
     for col in COLUMNS:
         if col not in df.columns:
             df[col] = ""
@@ -239,8 +310,6 @@ def _render_sttm_tab(tab: dict):
 # ── generated dbt files ───────────────────────────────────────────────────────
 
 def render_generated_files(project: DbtProject):
-    st.subheader("⚙️ Output Summary")
-
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Models",        len(project.models))
     col2.metric("Macros",        len(project.macros))
@@ -266,7 +335,7 @@ def render_generated_files(project: DbtProject):
         "staging": [], "intermediate": [], "marts": [], "macros": [], "config": []
     }
     for path, content in all_files:
-        if "staging"      in path: cats["staging"].append((path, content))
+        if "staging"        in path: cats["staging"].append((path, content))
         elif "intermediate" in path: cats["intermediate"].append((path, content))
         elif "marts"        in path: cats["marts"].append((path, content))
         elif "macros"       in path: cats["macros"].append((path, content))
@@ -309,8 +378,6 @@ def render_generated_files(project: DbtProject):
 # ── cost summary ──────────────────────────────────────────────────────────────
 
 def render_cost_summary(cost_data: dict):
-    st.subheader("💰 Cost Summary")
-
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Cost",    f"${cost_data['cost']['total_cost_usd']:.4f}")
     col2.metric("Input Tokens",  f"{cost_data['cost']['total_input_tokens']:,}")
@@ -318,7 +385,6 @@ def render_cost_summary(cost_data: dict):
     col4.metric("LLM Calls",     cost_data['cost']['calls'])
 
     with st.expander("Per-Step Breakdown", expanded=False):
-        # Header row
         h = st.columns([3, 2, 2, 2])
         h[0].markdown("**Agent**")
         h[1].markdown("**Input Tokens**")
