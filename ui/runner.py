@@ -203,9 +203,11 @@ def run_pipeline(
 
                 # ── write_output ───────────────────────────────────────────────
                 elif node_name == "write_output":
-                    # Don't mark wo as done yet — wait for sttm to complete
+                    # write_output fires after reviewer/fixer loop completes.
+                    # wo bar stays "running" until sttm finishes.
                     wo["status"] = "running"
                     _refresh()
+                    # Documenter is next — set it running now
                     _set_running("documenter")
 
                 # ── all other fixed linear steps ───────────────────────────────
