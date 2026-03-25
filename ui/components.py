@@ -41,31 +41,93 @@ def render_mapping_preview(mapping_raw: str):
         st.warning("Could not parse mapping file as JSON.")
 
 
-# ── pipeline step containers ──────────────────────────────────────────────────
+# ── pipeline step containers (legacy — kept for API compat) ──────────────────
 
 def render_pipeline_steps():
-    """Create containers for each fixed pipeline step plus a dynamic review area.
-    Returns step_containers dict — same interface as the last working version,
-    plus '_review_area' key for the reviewer/fixer loop.
+    """Kept for API compat. Returns empty dict — timeline is now rendered
+    via render_pipeline_timeline() from session state."""
+    return {}
+
+
+# ── pipeline timeline (reads from session_state, survives reruns) ─────────────
+
+def _fmt_time(seconds: float) -> str:
+    m = int(seconds) // 60
+    s = int(seconds) % 60
+    return f"{m}:{s:02d}"
+
+
+_STATUS_STYLE = {
+    "not_started": ("⚪", "#888888", "Not Started"),
+    "in_progress": ("🔵", "#1d6ae5", "In Progress"),
+    "completed":   ("🟢", "#1e8c45", "Completed"),
+    "warning":     ("🟡", "#e5a91d", "Completed with warnings"),
+    "failed":      ("🔴", "#c0392b", "Failed"),
+}
+
+
+def render_pipeline_timeline():
+    """Render the pipeline progress timeline from session_state.pipeline_steps.
+    Call this on every render — it reads stored state so it survives reruns.
     """
-    from ui.runner import STEP_ORDER, STEP_LABELS
-    containers = {}
+    steps = st.session_state.get("pipeline_steps", [])
 
-    for step in STEP_ORDER:
-        # Insert reviewer/fixer loop area between generator and write_output
-        if step == "write_output":
-            st.markdown(
-                "<p style='font-size:12px;color:#888;margin:4px 0 2px 0;'>"
-                "🔄 Reviewer / Fixer</p>",
-                unsafe_allow_html=True,
-            )
-            containers["_review_area"] = st.container()
-            st.markdown("<div style='margin-top:2px'></div>", unsafe_allow_html=True)
+    if not steps:
+        st.caption("Pipeline not yet started.")
+        return
 
-        containers[step] = st.empty()
-        containers[step].info(f"⬜ {STEP_LABELS[step]} pending")
+    # Group into sections
+    sections = {
+        "agents":       ("🤖 Agents", []),
+        "review":       ("🔄 Reviewer / Fixer", []),
+        "documents":    ("📄 Documents", []),
+        "write_output": ("", []),   # rendered separately at bottom
+    }
+    for s in steps:
+        sec = s.get("section", "agents")
+        if sec in sections:
+            sections[sec][1].append(s)
 
-    return containers
+    def _row(step):
+        icon, color, status_text = _STATUS_STYLE.get(step["status"], _STATUS_STYLE["not_started"])
+        time_str = f" ({_fmt_time(step['elapsed'])})" if step.get("elapsed") is not None else ""
+        label    = step["label"]
+        st.markdown(
+            f"<div style='padding:3px 0 3px 10px; border-left:2px solid {color}; margin:2px 0;'>"
+            f"<span style='font-weight:500; font-size:13px;'>{icon} {label}</span>"
+            f"<br><span style='color:#888; font-size:11px;'>{status_text}{time_str}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    for sec_key in ("agents", "review", "documents"):
+        header, rows = sections[sec_key]
+        if not rows:
+            continue
+        st.markdown(
+            f"<p style='font-size:11px; font-weight:600; color:#94a3b8; "
+            f"margin:10px 0 4px 0; text-transform:uppercase; letter-spacing:.05em;'>"
+            f"{header}</p>",
+            unsafe_allow_html=True,
+        )
+        for s in rows:
+            _row(s)
+
+    # Write Output — distinct visual at bottom
+    wo_rows = sections["write_output"][1]
+    if wo_rows:
+        wo = wo_rows[-1]
+        icon, color, status_text = _STATUS_STYLE.get(wo["status"], _STATUS_STYLE["not_started"])
+        time_str = f" ({_fmt_time(wo['elapsed'])})" if wo.get("elapsed") is not None else ""
+        st.markdown(
+            f"<div style='margin-top:12px; padding:8px 10px; "
+            f"background:{'#0f2a1a' if wo['status']=='completed' else '#0f172a'}; "
+            f"border-radius:6px; border:1px solid {color};'>"
+            f"<span style='color:{color}; font-weight:600; font-size:13px;'>"
+            f"{icon} All outputs generated{time_str}</span>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
 
 # ── step detail panels ────────────────────────────────────────────────────────
