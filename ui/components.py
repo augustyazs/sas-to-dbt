@@ -31,70 +31,93 @@ def _fmt_time(seconds: float) -> str:
     return f"{m}m {s:.0f}s"
 
 
-# ── Pipeline Progress ─────────────────────────────────────────────────────────
+# ── Pipeline Progress (timeline, right-aligned, dots on right) ────────────────
 
 _SECTION_LABELS = {
-    "agents":    "🤖  Agents",
-    "review":    "🔄  Reviewer / Fixer",
-    "documents": "📄  Documents",
+    "agents":    "🤖 &nbsp; Agents",
+    "review":    "🔄 &nbsp; Reviewer / Fixer",
+    "documents": "📄 &nbsp; Documents",
 }
 
 _STATUS_META = {
-    "pending": ("Not Started", "pending"),
-    "running": ("In Progress", "running"),
-    "done":    ("Completed",   "done"),
-    "error":   ("Error",       "error"),
+    "pending": ("Not Started",  "pending"),
+    "running": ("In Progress…", "running"),
+    "done":    ("Completed",    "done"),
+    "error":   ("Error",        "error"),
 }
 
 
 def render_pipeline_progress(slot, steps: list[dict], write_output_status: str = "pending"):
-    """Render the timeline-style pipeline progress panel into an st.empty() slot."""
+    """Render right-aligned timeline progress panel into an st.empty() slot.
 
-    if not steps and write_output_status == "pending":
-        slot.markdown(
-            '<div style="color:#475569;font-size:13px;padding:8px 0;">'
-            'Pipeline not started.</div>',
-            unsafe_allow_html=True,
-        )
-        return
+    Sections always rendered in order: agents → review → documents.
+    Reviewer/Fixer section header is always shown (even if no rows yet).
+    Dots are on the RIGHT side of each row.
+    Agent numbers shown as small label above agent name.
+    Write Output bar shown only after sttm completes.
+    """
 
-    # Group steps by section, preserving insertion order
-    seen_sections: list[str] = []
-    sections: dict[str, list[dict]] = {}
+    html = '<div class="progress-panel">'
+    html += '<div class="progress-header">⚙️ &nbsp; Pipeline Progress</div>'
+
+    # Group steps by section, preserving agent/review/documents order
+    section_order = ["agents", "review", "documents"]
+    grouped: dict[str, list[dict]] = {sec: [] for sec in section_order}
     for step in steps:
         sec = step.get("section", "agents")
-        if sec not in sections:
-            sections[sec] = []
-            seen_sections.append(sec)
-        sections[sec].append(step)
+        if sec in grouped:
+            grouped[sec].append(step)
 
-    html = '<div class="progress-header">⚙️ Pipeline Progress</div>'
+    all_rows: list[tuple[str, list[dict]]] = []
+    for sec in section_order:
+        all_rows.append((sec, grouped[sec]))
 
-    total_steps_rendered = sum(len(v) for v in sections.values())
-    rendered_count = 0
+    # Flatten to compute total for last-row check (no line after last)
+    flat: list[tuple[str, dict]] = []
+    for sec, sec_steps in all_rows:
+        for step in sec_steps:
+            flat.append((sec, step))
 
-    for sec_key in seen_sections:
-        sec_steps = sections[sec_key]
-        sec_label = _SECTION_LABELS.get(sec_key, sec_key)
+    rendered = 0
+
+    for sec, sec_steps in all_rows:
+        sec_label = _SECTION_LABELS.get(sec, sec)
         html += f'<div class="progress-section-label">{sec_label}</div>'
 
-        for i, step in enumerate(sec_steps):
+        if not sec_steps:
+            # Empty section — show a subtle placeholder row
+            html += (
+                '<div class="tl-row">'
+                '<div class="tl-dot-col">'
+                '<div class="tl-dot pending"></div>'
+                '</div>'
+                '<div class="tl-text">'
+                '<div class="tl-label pending" style="font-style:italic;font-size:12px;">Waiting…</div>'
+                '</div>'
+                '</div>'
+            )
+            continue
+
+        for step in sec_steps:
             status    = step.get("status", "pending")
             label     = step.get("label", step.get("key", ""))
             elapsed   = step.get("elapsed")
+            agent_num = step.get("agent_num")
             meta_text, meta_cls = _STATUS_META.get(status, ("Not Started", "pending"))
 
-            # Time override for running/done
             if elapsed is not None:
                 meta_text = f"Completed &nbsp;·&nbsp; {_fmt_time(elapsed)}"
             elif status == "running":
                 meta_text = "In Progress…"
 
-            rendered_count += 1
-            is_last = (rendered_count == total_steps_rendered)
-
-            # Determine line colour based on next step
+            rendered += 1
+            is_last = (rendered == len(flat))
             line_cls = "done" if status == "done" else ("running" if status == "running" else "")
+
+            num_html = (
+                f'<div class="tl-agent-num">Agent {agent_num}</div>'
+                if agent_num is not None else ""
+            )
 
             html += f"""
 <div class="tl-row">
@@ -103,19 +126,22 @@ def render_pipeline_progress(slot, steps: list[dict], write_output_status: str =
     {'<div class="tl-line ' + line_cls + '"></div>' if not is_last else ''}
   </div>
   <div class="tl-text">
+    {num_html}
     <div class="tl-label {status}">{label}</div>
     <div class="tl-meta {meta_cls}">{meta_text}</div>
   </div>
 </div>"""
 
-    # Write Output bar at the bottom
-    wo_label = {
-        "pending": "○ &nbsp; Write Output",
-        "running": "◉ &nbsp; Writing output…",
-        "done":    "✓ &nbsp; dbt output generated successfully",
-    }.get(write_output_status, "○ &nbsp; Write Output")
+    html += '</div>'  # close progress-panel
 
-    html += f'<div class="wo-bar {write_output_status}">{wo_label}</div>'
+    # Write Output bar — only show as "done" once STTM completes
+    wo_status = write_output_status
+    wo_label = {
+        "pending": "○ &nbsp; Outputs pending",
+        "running": "◉ &nbsp; Generating outputs…",
+        "done":    "✓ &nbsp; Outputs generated successfully",
+    }.get(wo_status, "○ &nbsp; Outputs pending")
+    html += f'<div class="wo-bar {wo_status}">{wo_label}</div>'
 
     slot.markdown(html, unsafe_allow_html=True)
 
@@ -287,7 +313,7 @@ def _render_sttm_tab(tab: dict):
         "Comments",
     ]
 
-    df = __import__("pandas").DataFrame(rows)
+    df = pd.DataFrame(rows)
     for col in COLUMNS:
         if col not in df.columns:
             df[col] = ""
@@ -397,4 +423,4 @@ def render_cost_summary(cost_data: dict):
             cols[0].write(entry["step"])
             cols[1].write(f"{entry['input_tokens']:,}")
             cols[2].write(f"{entry['output_tokens']:,}")
-            cols[3].write(f"${entry['cost_usd']:.4f}")
+            cols[3].write(f"${entry['cost_usd']:.2f}")

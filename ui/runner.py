@@ -21,7 +21,7 @@ STEP_LABELS = {
     "analyzer":     "Analyzer",
     "resolver":     "Resolver",
     "architect":    "Architect",
-    "generator":    "Developer",
+    "generator":    "Generator",
     "write_output": "Write Output",
     "documenter":   "Documenter",
     "sttm":         "STTM Generator",
@@ -34,6 +34,16 @@ STEP_SECTION = {
     "generator": "agents",
     "documenter": "documents",
     "sttm":       "documents",
+}
+
+# Agent numbers: fixed for agents + documents; reviewer/fixer always show 5/6
+AGENT_NUMBERS = {
+    "analyzer":  1,
+    "resolver":  2,
+    "architect": 3,
+    "generator": 4,
+    "documenter": 7,
+    "sttm":       8,
 }
 
 
@@ -63,23 +73,37 @@ def run_pipeline(
         "status":          "started",
     }
 
-    # Build initial steps — fixed agent + document steps, all pending
+    # Build initial steps — agents first, then reviewer/fixer placeholder rows,
+    # then documents. All pending to start.
     steps: list[dict] = []
-    for s in STEP_ORDER:
-        if s == "write_output":
-            continue  # rendered as separate bar, not a timeline row
+
+    # Agent steps (1-4)
+    for s in ["analyzer", "resolver", "architect", "generator"]:
         steps.append({
-            "key":     s,
-            "label":   STEP_LABELS[s],
-            "section": STEP_SECTION[s],
-            "status":  "pending",
-            "elapsed": None,
+            "key":        s,
+            "label":      STEP_LABELS[s],
+            "section":    "agents",
+            "agent_num":  AGENT_NUMBERS[s],
+            "status":     "pending",
+            "elapsed":    None,
         })
 
-    # Mutable container for write_output status (avoids nonlocal issues in closures)
+    # Reviewer/Fixer section — starts empty but section header shows immediately.
+    # We'll append rows here dynamically as reviewer/fixer nodes fire.
+
+    # Document steps (7-8)
+    for s in ["documenter", "sttm"]:
+        steps.append({
+            "key":        s,
+            "label":      STEP_LABELS[s],
+            "section":    "documents",
+            "agent_num":  AGENT_NUMBERS[s],
+            "status":     "pending",
+            "elapsed":    None,
+        })
+
     wo = {"status": "pending"}
 
-    # Initialise session state + render initial pending state
     st.session_state.pipeline_steps = list(steps)
     st.session_state.write_output_status = wo["status"]
     render_pipeline_progress(progress_slot, steps, wo["status"])
@@ -113,14 +137,20 @@ def run_pipeline(
             s["elapsed"] = elapsed
         _refresh()
 
-    def _add_review_row(label: str, status: str):
+    def _add_review_row(label: str, status: str, agent_num: int):
         step_start_times[label] = time.perf_counter()
-        steps.append({
-            "key":     label,
-            "label":   label,
-            "section": "review",
-            "status":  status,
-            "elapsed": None,
+        # Insert review rows BEFORE the documents section
+        insert_idx = next(
+            (i for i, s in enumerate(steps) if s["section"] == "documents"),
+            len(steps),
+        )
+        steps.insert(insert_idx, {
+            "key":       label,
+            "label":     label,
+            "section":   "review",
+            "agent_num": agent_num,
+            "status":    status,
+            "elapsed":   None,
         })
         _refresh()
 
@@ -154,13 +184,13 @@ def run_pipeline(
                     if _step_by_key(label):
                         _finish_review_row(label, "done" if passed else "error")
                     else:
-                        _add_review_row(label, "running")
+                        _add_review_row(label, "running", agent_num=5)
                         _finish_review_row(label, "done" if passed else "error")
 
                     if not passed:
                         fixer_label = f"Fixer {count}"
                         current_fixer_label = fixer_label
-                        _add_review_row(fixer_label, "running")
+                        _add_review_row(fixer_label, "running", agent_num=6)
                     else:
                         wo["status"] = "running"
                         _refresh()
@@ -173,7 +203,8 @@ def run_pipeline(
 
                 # ── write_output ───────────────────────────────────────────────
                 elif node_name == "write_output":
-                    wo["status"] = "done"
+                    # Don't mark wo as done yet — wait for sttm to complete
+                    wo["status"] = "running"
                     _refresh()
                     _set_running("documenter")
 
@@ -182,17 +213,25 @@ def run_pipeline(
                     errored = node_output.get("status") in ("error", "halted")
                     _set_done(node_name, errored=errored)
 
-                    # Advance next pending fixed step to running
-                    fixed_keys = [s["key"] for s in steps if s["section"] in ("agents", "documents")]
+                    # Advance next pending fixed step (agents + documents)
+                    fixed_keys = [
+                        s["key"] for s in steps
+                        if s["section"] in ("agents", "documents")
+                    ]
                     for key in fixed_keys:
                         obj = _step_by_key(key)
                         if obj and obj["status"] == "pending":
                             _set_running(key)
                             break
 
-                    # After generator finishes, add Reviewer 1 as running
+                    # After generator, prime Reviewer 1 as running
                     if node_name == "generator":
-                        _add_review_row("Reviewer 1", "running")
+                        _add_review_row("Reviewer 1", "running", agent_num=5)
+
+                    # After sttm (last step), mark Write Output bar as done
+                    if node_name == "sttm":
+                        wo["status"] = "done"
+                        _refresh()
 
     except Exception as e:
         st.error(f"Pipeline error: {str(e)}")

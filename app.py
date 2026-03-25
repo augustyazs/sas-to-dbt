@@ -37,6 +37,8 @@ if "pipeline_steps" not in st.session_state:
     st.session_state.pipeline_steps = []
 if "write_output_status" not in st.session_state:
     st.session_state.write_output_status = "pending"
+if "pipeline_running" not in st.session_state:
+    st.session_state.pipeline_running = False
 
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
@@ -72,26 +74,49 @@ st.markdown("""
         border: 1px solid #334155; white-space: pre-wrap;
     }
 
+    /* vertical divider between main and progress columns */
+    .col-divider {
+        border-left: 1px solid #1e293b;
+        min-height: 400px;
+        margin: 0 8px;
+    }
+
+    /* output placeholder inside dropdowns while pipeline is running */
+    .output-waiting {
+        padding: 14px 16px;
+        background: #0f172a;
+        border: 1px dashed #1e3a5f;
+        border-radius: 6px;
+        color: #3b82f6;
+        font-size: 13px;
+        text-align: center;
+        margin: 4px 0;
+    }
+
     /* ── Pipeline progress panel ── */
+    .progress-panel {
+        padding: 0 4px 0 12px;
+        direction: rtl;   /* right-align the whole panel */
+    }
+    .progress-panel > * { direction: ltr; }  /* re-ltr inner content */
+
     .progress-header {
         font-size: 15px; font-weight: 700; color: #e2e8f0;
         display: flex; align-items: center; gap: 8px;
-        margin-bottom: 14px;
+        margin-bottom: 14px; justify-content: flex-end;
     }
     .progress-section-label {
         font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
         text-transform: uppercase; color: #64748b;
-        margin: 14px 0 6px 32px;
+        margin: 14px 0 6px 0; text-align: right;
     }
-    .progress-section-label:first-of-type { margin-top: 0; }
 
-    /* timeline row */
+    /* timeline row — dot on the RIGHT, text on the LEFT */
     .tl-row {
         display: flex; align-items: flex-start;
+        flex-direction: row-reverse;   /* reverse: dot col comes first visually on right */
         gap: 0; margin-bottom: 0;
-        position: relative;
     }
-    /* dot column */
     .tl-dot-col {
         display: flex; flex-direction: column; align-items: center;
         width: 28px; flex-shrink: 0; padding-top: 3px;
@@ -101,25 +126,27 @@ st.markdown("""
         border: 2px solid #334155; background: #0f172a;
         flex-shrink: 0; z-index: 1;
     }
-    .tl-dot.pending  { border-color: #334155; background: #0f172a; }
-    .tl-dot.running  { border-color: #3b82f6; background: #1d4ed8;
-                        box-shadow: 0 0 6px #3b82f6; }
-    .tl-dot.done     { border-color: #16a34a; background: #15803d; }
-    .tl-dot.error    { border-color: #dc2626; background: #991b1b; }
-    /* connecting line below dot */
+    .tl-dot.pending { border-color: #334155; background: #0f172a; }
+    .tl-dot.running { border-color: #3b82f6; background: #1d4ed8;
+                      box-shadow: 0 0 6px #3b82f6; }
+    .tl-dot.done    { border-color: #16a34a; background: #15803d; }
+    .tl-dot.error   { border-color: #dc2626; background: #991b1b; }
     .tl-line {
         width: 2px; background: #1e293b;
         flex-grow: 1; min-height: 16px;
     }
-    .tl-line.done  { background: #15803d; }
+    .tl-line.done    { background: #15803d; }
     .tl-line.running { background: linear-gradient(#15803d, #1e293b); }
-    /* text column */
+
+    /* text column — right-aligned */
     .tl-text {
-        padding: 0 0 14px 6px; flex: 1;
+        padding: 0 6px 14px 0; flex: 1; text-align: right;
+    }
+    .tl-agent-num {
+        font-size: 10px; color: #475569; font-weight: 500;
     }
     .tl-label {
-        font-size: 13px; font-weight: 600; color: #e2e8f0;
-        line-height: 1.3;
+        font-size: 13px; font-weight: 600; color: #e2e8f0; line-height: 1.3;
     }
     .tl-label.pending { color: #475569; font-weight: 400; }
     .tl-label.running { color: #93c5fd; }
@@ -131,24 +158,20 @@ st.markdown("""
     .tl-meta.running { color: #60a5fa; }
     .tl-meta.done    { color: #4ade80; }
 
-    /* Write Output footer bar */
+    /* Write Output / final bar */
     .wo-bar {
         margin-top: 16px; padding: 8px 12px; border-radius: 6px;
         font-size: 12px; font-weight: 600; text-align: center;
         letter-spacing: 0.04em;
     }
-    .wo-bar.pending {
-        background: #1e293b; border: 1px dashed #334155; color: #475569;
-    }
-    .wo-bar.running {
-        background: #1e3a5f; border: 1px solid #3b82f6; color: #93c5fd;
-    }
-    .wo-bar.done {
+    .wo-bar.pending { background:#1e293b; border:1px dashed #334155; color:#475569; }
+    .wo-bar.running { background:#1e3a5f; border:1px solid #3b82f6; color:#93c5fd; }
+    .wo-bar.done    {
         background: linear-gradient(90deg,#052e16,#14532d);
-        border: 1px solid #16a34a; color: #4ade80;
+        border:1px solid #16a34a; color:#4ade80;
     }
 
-    /* Status footer in output panel */
+    /* Status footer */
     .status-bar {
         margin-top: 18px; padding: 10px 20px; border-radius: 8px;
         font-size: 14px; font-weight: 600; text-align: center;
@@ -184,7 +207,7 @@ def _render_architect_detail(plan):
 
 
 def _render_generator_detail(project):
-    with st.expander("Developer (Generator) Detail", expanded=False):
+    with st.expander("Generator Detail", expanded=False):
         col1, col2, col3 = st.columns(3)
         col1.metric("Models",        len(project.models))
         col2.metric("Macros",        len(project.macros))
@@ -208,6 +231,13 @@ def _render_fixer_detail(dbt_project):
                 st.markdown(f"- {item}")
 
 
+def _waiting_placeholder(label: str):
+    st.markdown(
+        f'<div class="output-waiting">⏳ &nbsp; {label} — pipeline in progress…</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _run_pipeline_and_store(sas_code, mapping_raw, progress_slot):
     st.session_state.run_error   = None
     st.session_state.final_state = None
@@ -215,11 +245,13 @@ def _run_pipeline_and_store(sas_code, mapping_raw, progress_slot):
     st.session_state.log_files   = []
     st.session_state.pipeline_steps = []
     st.session_state.write_output_status = "pending"
+    st.session_state.pipeline_running = True
 
     try:
         col_mappings = [ColumnMapping(**e) for e in json.loads(mapping_raw)]
     except Exception as e:
         st.session_state.run_error = f"Failed to parse mapping file: {e}"
+        st.session_state.pipeline_running = False
         return
 
     conventions = DbtConventions()
@@ -231,6 +263,8 @@ def _run_pipeline_and_store(sas_code, mapping_raw, progress_slot):
             conventions=conventions,
             progress_slot=progress_slot,
         )
+
+    st.session_state.pipeline_running = False
 
     if final_state is None:
         st.session_state.run_error = "Pipeline failed. Check logs for details."
@@ -291,7 +325,7 @@ with st.sidebar:
     1. **Analyzer** — Parse SAS, extract metadata
     2. **Resolver** — Map on-prem → cloud names
     3. **Architect** — Plan dbt model structure
-    4. **Developer** — Generate dbt project
+    4. **Generator** — Generate dbt project
     5. **Reviewer ↔ Fixer** — Validate & fix
     6. **Write Output** — Persist dbt files
     7. **Documenter** — Business documentation
@@ -392,10 +426,13 @@ with col_run:
 
 st.divider()
 
-# ── MAIN AREA: outputs (left 3/4) | pipeline progress (right 1/4) ────────────
-col_main, col_progress = st.columns([3, 1])
+# ── MAIN AREA: outputs (left) | thin divider | pipeline progress (right) ─────
+col_main, col_div, col_progress = st.columns([3, 0.02, 1])
 
 # ── RIGHT: pipeline progress ──────────────────────────────────────────────────
+with col_div:
+    st.markdown('<div class="col-divider"></div>', unsafe_allow_html=True)
+
 with col_progress:
     progress_slot = st.empty()
     render_pipeline_progress(
@@ -404,40 +441,42 @@ with col_progress:
         st.session_state.get("write_output_status", "pending"),
     )
 
-# ── Trigger run ───────────────────────────────────────────────────────────────
-if run_clicked and can_run:
-    with col_main:
-        st.info("⏳ Pipeline running — results will appear here once complete.")
-    _run_pipeline_and_store(sas_code, mapping_raw, progress_slot)
+# ── Trigger run — build placeholder output dropdowns, then execute pipeline ──
+is_running = st.session_state.pipeline_running
+final_state = st.session_state.final_state
 
-# ── LEFT: outputs ─────────────────────────────────────────────────────────────
+if run_clicked and can_run:
+    # Mark running so placeholders render on this rerun
+    st.session_state.pipeline_running = True
+    is_running = True
+
 with col_main:
     if st.session_state.run_error:
         st.error(st.session_state.run_error)
 
-    final_state = st.session_state.final_state
-    cost_data   = st.session_state.cost_data
-    log_files   = st.session_state.log_files
-
-    if final_state is not None:
+    # Show output area only if pipeline has been triggered at least once
+    if is_running or final_state is not None:
 
         # 1. Step Details
         with st.expander("🔍 Step Details", expanded=False):
-            if final_state.get("analysis"):
+            if final_state and final_state.get("analysis"):
                 render_analyzer_detail(final_state["analysis"])
-            if final_state.get("resolved_mappings"):
-                render_resolver_detail(final_state["resolved_mappings"])
-            if final_state.get("migration_plan"):
-                _render_architect_detail(final_state["migration_plan"])
-            if final_state.get("dbt_project"):
-                _render_generator_detail(final_state["dbt_project"])
-            if final_state.get("review"):
-                render_review_detail(final_state["review"])
-            if final_state.get("dbt_project"):
-                _render_fixer_detail(final_state["dbt_project"])
+                if final_state.get("resolved_mappings"):
+                    render_resolver_detail(final_state["resolved_mappings"])
+                if final_state.get("migration_plan"):
+                    _render_architect_detail(final_state["migration_plan"])
+                if final_state.get("dbt_project"):
+                    _render_generator_detail(final_state["dbt_project"])
+                if final_state.get("review"):
+                    render_review_detail(final_state["review"])
+                if final_state.get("dbt_project"):
+                    _render_fixer_detail(final_state["dbt_project"])
+            else:
+                _waiting_placeholder("Agent step details")
 
         # 2. Pipeline Logs
         with st.expander("📝 Pipeline Logs", expanded=False):
+            log_files = st.session_state.log_files
             _EXCLUDED = ("ingestion_blocks", "sttm_output", "sas_documentation")
             visible_logs = [
                 f for f in log_files
@@ -460,44 +499,56 @@ with col_main:
                                 unsafe_allow_html=True,
                             )
             else:
-                st.info("No logs generated for this run.")
+                _waiting_placeholder("Pipeline logs")
 
         # 3. Output Summary
         with st.expander("⚙️ Output Summary", expanded=True):
-            if final_state.get("dbt_project"):
+            if final_state and final_state.get("dbt_project"):
                 render_generated_files(final_state["dbt_project"])
             else:
-                st.info("No dbt output generated.")
+                _waiting_placeholder("dbt output files")
 
         # 4. Cost Summary
         with st.expander("💰 Cost Summary", expanded=False):
+            cost_data = st.session_state.cost_data
             if cost_data:
                 render_cost_summary(cost_data)
             else:
-                st.info("Cost data unavailable.")
+                _waiting_placeholder("Cost breakdown")
 
         # 5. Documentation
         with st.expander("📄 Documentation", expanded=False):
-            render_documentation(final_state.get("sas_documentation"))
+            if final_state and final_state.get("sas_documentation"):
+                render_documentation(final_state.get("sas_documentation"))
+            else:
+                _waiting_placeholder("Pipeline documentation")
 
         # 6. STTM
         with st.expander("🗺️ Source-to-Target Mapping", expanded=False):
-            render_sttm(final_state.get("sttm_data"))
+            if final_state and final_state.get("sttm_data"):
+                render_sttm(final_state.get("sttm_data"))
+            else:
+                _waiting_placeholder("Source-to-target mapping")
 
-        # Status bar
-        final_status = final_state.get("status", "unknown")
-        if final_status in ("done", "complete", "complete_with_warnings"):
-            st.markdown(
-                '<div class="status-bar done">✅ &nbsp; Status: Pipeline completed successfully</div>',
-                unsafe_allow_html=True,
-            )
-        elif final_status == "halted":
-            st.markdown(
-                f'<div class="status-bar error">❌ &nbsp; Status: Pipeline halted — {final_state.get("error", "See logs")}</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f'<div class="status-bar warn">⚠️ &nbsp; Status: {final_status}</div>',
-                unsafe_allow_html=True,
-            )
+        # Status bar — only when done
+        if final_state is not None:
+            final_status = final_state.get("status", "unknown")
+            if final_status in ("done", "complete", "complete_with_warnings"):
+                st.markdown(
+                    '<div class="status-bar done">✅ &nbsp; Status: Pipeline completed successfully</div>',
+                    unsafe_allow_html=True,
+                )
+            elif final_status == "halted":
+                st.markdown(
+                    f'<div class="status-bar error">❌ &nbsp; Status: Pipeline halted — {final_state.get("error", "See logs")}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div class="status-bar warn">⚠️ &nbsp; Status: {final_status}</div>',
+                    unsafe_allow_html=True,
+                )
+
+# ── Actually run the pipeline (after UI placeholders are rendered) ────────────
+if run_clicked and can_run:
+    _run_pipeline_and_store(sas_code, mapping_raw, progress_slot)
