@@ -241,10 +241,11 @@ def _run_pipeline_and_store(sas_code, mapping_raw, progress_slot):
         st.session_state.run_error = "Pipeline failed. Check logs for details."
         return
 
-    # Store results — Streamlit will re-render the output section on next run
+    # Store results then force a rerun so the output section picks up new session state
     st.session_state.final_state = final_state
     st.session_state.cost_data   = cost_data
     st.session_state.log_files   = get_current_run_logs()
+    st.rerun()
 
 
 # ── LEFT SIDEBAR ──────────────────────────────────────────────────────────────
