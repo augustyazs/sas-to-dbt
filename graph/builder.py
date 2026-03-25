@@ -2,12 +2,13 @@ from langgraph.graph import StateGraph, END
 from state.graph_state import GraphState
 from agents.analyzer import analyzer_node
 from agents.resolver import resolver_node
-from agents.documenter import documenter_node
-from agents.sttm import sttm_node
 from agents.architect import architect_plan_node
 from agents.generator import generator_node
 from agents.reviewer import reviewer_node
-from graph.conditions import after_analyzer, after_resolver, after_reviewer
+from agents.fixer import fixer_node
+from agents.documenter import documenter_node
+from agents.sttm import sttm_node
+from graph.conditions import after_analyzer, after_resolver, after_reviewer_fixer
 from utils.dbt_writer import write_dbt_project
 from utils.logger import log_step
 from config.settings import OUTPUTS_DIR
@@ -26,8 +27,8 @@ def write_output_node(state: GraphState) -> dict:
 def halt_node(state: GraphState) -> dict:
     """Halt pipeline with error details."""
     print("\n[HALT] Pipeline stopped.")
-    print(f"  Status: {state.get('status')}")
-    print(f"  Error: {state.get('error', 'See resolver/analyzer output for details')}")
+    print(f"  Status : {state.get('status')}")
+    print(f"  Error  : {state.get('error', 'See resolver/analyzer output for details')}")
     if state.get("resolved_mappings"):
         rm = state["resolved_mappings"]
         if rm.unresolved_tables:
@@ -39,19 +40,21 @@ def build_graph() -> StateGraph:
     """Construct the LangGraph state machine.
 
     Flow:
-        Analyzer → Resolver → Documenter → STTM → Architect (plan)
-        → Generator → Reviewer ↔ Fixer → Write Output
+        Analyzer → Resolver → Architect → Generator
+        → Reviewer → Fixer (loop) → Write Output
+        → Documenter → STTM → END
     """
     graph = StateGraph(GraphState)
 
     graph.add_node("analyzer",     analyzer_node)
     graph.add_node("resolver",     resolver_node)
-    graph.add_node("documenter",   documenter_node)
-    graph.add_node("sttm",         sttm_node)
     graph.add_node("architect",    architect_plan_node)
     graph.add_node("generator",    generator_node)
     graph.add_node("reviewer",     reviewer_node)
+    graph.add_node("fixer",        fixer_node)
     graph.add_node("write_output", write_output_node)
+    graph.add_node("documenter",   documenter_node)
+    graph.add_node("sttm",         sttm_node)
     graph.add_node("halt",         halt_node)
 
     graph.set_entry_point("analyzer")
@@ -62,21 +65,25 @@ def build_graph() -> StateGraph:
     })
 
     graph.add_conditional_edges("resolver", after_resolver, {
-        "documenter": "documenter",
-        "halt":       "halt",
+        "architect": "architect",
+        "halt":      "halt",
     })
 
-    graph.add_edge("documenter",   "sttm")
-    graph.add_edge("sttm",         "architect")
-    graph.add_edge("architect",    "generator")
-    graph.add_edge("generator",    "reviewer")
+    graph.add_edge("architect", "generator")
+    graph.add_edge("generator", "reviewer")
 
-    graph.add_conditional_edges("reviewer", after_reviewer, {
-        "reviewer":     "reviewer",
+    # Reviewer → Fixer → Reviewer loop, or exit to write_output
+    graph.add_conditional_edges("reviewer", after_reviewer_fixer, {
+        "fixer":        "fixer",
         "write_output": "write_output",
     })
+    graph.add_edge("fixer", "reviewer")
 
-    graph.add_edge("write_output", END)
-    graph.add_edge("halt",         END)
+    # After writing dbt files, run documentation agents sequentially
+    graph.add_edge("write_output", "documenter")
+    graph.add_edge("documenter",   "sttm")
+    graph.add_edge("sttm",         END)
+
+    graph.add_edge("halt", END)
 
     return graph.compile()

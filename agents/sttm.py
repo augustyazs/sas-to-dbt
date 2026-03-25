@@ -3,7 +3,6 @@ from tools.llm_client import call_llm
 from config.prompts import STTM_SYSTEM, STTM_USER
 from config.settings import DOC_OUTPUT_DIR
 from utils.dbt_writer import write_sttm_excel
-from utils.logger import log_step
 
 
 def sttm_node(state: GraphState) -> dict:
@@ -21,7 +20,6 @@ def sttm_node(state: GraphState) -> dict:
     )
 
     sttm_data = call_llm(STTM_SYSTEM, sttm_prompt, step_name="sttm_generator_agent")
-    log_step("sttm_output", sttm_data, is_pydantic=False)
 
     sttm_path = write_sttm_excel(sttm_data, DOC_OUTPUT_DIR)
     print(f"  ✓ STTM written: {sttm_path}")

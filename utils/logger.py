@@ -9,6 +9,7 @@ _run_start_time: float = 0.0
 
 
 def reset_logs():
+    """Clear current run log tracker and start the run timer."""
     global _current_run_logs, _run_start_time
     _current_run_logs = []
     _run_start_time   = time.perf_counter()
@@ -22,11 +23,10 @@ def _ensure_dir():
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def log_step(step_name: str, data, is_pydantic=True):
-    """Dump step output to logs/ as formatted JSON."""
+def log_step(step_name: str, data, is_pydantic: bool = True):
+    """Dump step output to logs/<step_name>.json — no timestamp in filename."""
     _ensure_dir()
-    ts       = datetime.now().strftime("%H%M%S")
-    filename = f"{step_name}_{ts}.json"
+    filename = f"{step_name}.json"
 
     if is_pydantic:
         content = data.model_dump_json(indent=2)
@@ -37,17 +37,16 @@ def log_step(step_name: str, data, is_pydantic=True):
 
     path = LOGS_DIR / filename
     path.write_text(content, encoding="utf-8")
-    _current_run_logs.append(path)
+
+    # Only append to current run list if not already tracked
+    if path not in _current_run_logs:
+        _current_run_logs.append(path)
+
     print(f"  📝 Log: {path}")
 
 
 def write_cost_summary(usage_log: list[dict], total: dict) -> Path:
-    """
-    Write structured cost_summary.json alongside per-step logs.
-    Format mirrors the example:
-    { "<step>": { input_tokens, output_tokens, cost_usd, response_time_seconds }, ...,
-      "all_agents": { ... }, "total_run_duration_seconds": ... }
-    """
+    """Write structured cost_summary.json."""
     _ensure_dir()
     summary: dict = {}
 
@@ -60,7 +59,6 @@ def write_cost_summary(usage_log: list[dict], total: dict) -> Path:
             "response_time_seconds": entry["response_time_seconds"],
         }
 
-    # resolver has no LLM calls — always inject a zero entry
     if "resolver_agent" not in summary:
         summary["resolver_agent"] = {
             "input_tokens":          0,
@@ -80,9 +78,11 @@ def write_cost_summary(usage_log: list[dict], total: dict) -> Path:
     run_duration = round(time.perf_counter() - _run_start_time, 2) if _run_start_time else 0.0
     summary["total_run_duration_seconds"] = run_duration
 
-    ts   = datetime.now().strftime("%H%M%S")
-    path = LOGS_DIR / f"cost_summary_{ts}.json"
+    path = LOGS_DIR / "cost_summary.json"
     path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    _current_run_logs.append(path)
+
+    if path not in _current_run_logs:
+        _current_run_logs.append(path)
+
     print(f"  📝 Cost summary: {path}")
     return path

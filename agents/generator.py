@@ -25,7 +25,6 @@ def generator_node(state: GraphState) -> dict:
 
     result = call_llm(GENERATOR_SYSTEM, user_prompt, step_name="generator")
 
-    # Defensive: skip malformed model/macro entries
     def _sanitize(raw_list, label):
         out = []
         for i, item in enumerate(raw_list or []):
@@ -44,5 +43,5 @@ def generator_node(state: GraphState) -> dict:
     print(f"  Macros generated : {len(project.macros)}")
     print(f"  Not converted    : {len(project.not_converted)}")
 
-    log_step("developer_output", project)
+    log_step("generator_output", project)   # renamed from developer_output
     return {"dbt_project": project, "status": "generated"}
