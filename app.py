@@ -21,6 +21,35 @@ from utils.logger import get_current_run_logs
 from config.settings import INPUTS_DIR
 
 
+# ── HELPERS — defined before use ─────────────────────────────────────────────
+def _render_architect_detail(plan):
+    with st.expander("Architect Detail", expanded=False):
+        tab1, tab2 = st.tabs(["Planned Models", "Edge Cases"])
+        with tab1:
+            for m in plan.models:
+                st.markdown(f"**{m.name}** `{m.layer}` — {m.logic[:80]}")
+        with tab2:
+            if plan.edge_cases:
+                for ec in plan.edge_cases:
+                    badge = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(ec.risk, "⚪")
+                    st.markdown(f"{badge} **{ec.pattern}**")
+                    st.caption(ec.recommendation)
+            else:
+                st.success("No edge cases flagged.")
+
+
+def _render_generator_detail(project):
+    with st.expander("Developer (Generator) Detail", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Models",        len(project.models))
+        col2.metric("Macros",        len(project.macros))
+        col3.metric("Not Converted", len(project.not_converted))
+        if project.not_converted:
+            st.markdown("**Not Converted:**")
+            for item in project.not_converted:
+                st.markdown(f"- {item}")
+
+
 st.set_page_config(
     page_title="HPP Capabilities — SAS to dbt",
     page_icon="⚡",
@@ -355,34 +384,3 @@ if run_clicked and can_run:
         st.error(f"❌ Pipeline halted — {final_state.get('error', 'See step details')}")
     else:
         st.warning(f"⚠️ Pipeline ended — Status: {final_status}")
-
-
-# ── ARCHITECT + GENERATOR DETAIL HELPERS (local to app, not in components) ───
-def _render_architect_detail(plan):
-    import streamlit as st
-    with st.expander("Architect Detail", expanded=False):
-        tab1, tab2 = st.tabs(["Planned Models", "Edge Cases"])
-        with tab1:
-            for m in plan.models:
-                st.markdown(f"**{m.name}** `{m.layer}` — {m.logic[:80]}")
-        with tab2:
-            if plan.edge_cases:
-                for ec in plan.edge_cases:
-                    badge = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(ec.risk, "⚪")
-                    st.markdown(f"{badge} **{ec.pattern}**")
-                    st.caption(ec.recommendation)
-            else:
-                st.success("No edge cases flagged.")
-
-
-def _render_generator_detail(project):
-    import streamlit as st
-    with st.expander("Developer (Generator) Detail", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Models",        len(project.models))
-        col2.metric("Macros",        len(project.macros))
-        col3.metric("Not Converted", len(project.not_converted))
-        if project.not_converted:
-            st.markdown("**Not Converted:**")
-            for item in project.not_converted:
-                st.markdown(f"- {item}")
