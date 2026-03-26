@@ -63,10 +63,10 @@ _META_COLORS = {
 def _section_divider(title: str) -> str:
     return (
         '<div style="display:flex;align-items:center;gap:6px;margin:14px 0 10px 0;">'
-        '<div style="flex:1;height:1px;background:#334155;"></div>'
+        '<div style="width:24px;height:1px;background:#334155;flex-shrink:0;"></div>'
         f'<span style="font-size:9px;color:#64748b;font-weight:700;'
         f'letter-spacing:0.12em;white-space:nowrap;">{title}</span>'
-        '<div style="flex:1;height:1px;background:#334155;"></div>'
+        '<div style="width:24px;height:1px;background:#334155;flex-shrink:0;"></div>'
         '</div>'
     )
 
@@ -112,9 +112,9 @@ def _render_section_rows(rows: list[dict]) -> str:
         mb = "margin-bottom:10px;" if i < len(rows) - 1 else "margin-bottom:4px;"
         dot_top = "14px" if agent_num else "4px"
 
-        # Dot on the RIGHT, aligned to the line at right:6px
+        # Dot: right:-26px aligns its center (right:7px) with line center (right:7px)
         dot_html = (
-            f'<div style="position:absolute;right:-20px;top:{dot_top};'
+            f'<div style="position:absolute;right:-26px;top:{dot_top};'
             f'width:14px;height:14px;border-radius:50%;{base}{glow}z-index:1;"></div>'
         )
 
@@ -152,10 +152,11 @@ def render_pipeline_progress(slot, steps: list[dict], write_output_status: str =
     html = '<div style="padding-right:14px;direction:rtl;">'
     html += '<div style="direction:ltr;">'  # re-ltr all inner content
 
-    # Header
+    # Header — centered, no emoji, all caps, larger than agent name font
     html += (
-        '<div style="font-size:15px;font-weight:700;color:#e2e8f0;'
-        'margin-bottom:4px;">⚙️&nbsp; Pipeline Progress</div>'
+        '<div style="font-size:18px;font-weight:800;color:#e2e8f0;'
+        'letter-spacing:0.08em;text-align:center;margin-bottom:4px;">'
+        'PIPELINE PROGRESS</div>'
     )
 
     for sec in _SECTION_ORDER:

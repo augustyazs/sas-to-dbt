@@ -3,7 +3,7 @@ import streamlit as st
 from models.schemas import ColumnMapping, DbtConventions
 from graph.builder import build_graph
 from tools.llm_client import get_usage_log, get_total_cost, reset_usage
-from utils.logger import reset_logs
+from utils.logger import reset_logs, log_step
 from ui.components import render_pipeline_progress
 
 
@@ -197,9 +197,14 @@ def run_pipeline(
 
                 # ── Fixer ─────────────────────────────────────────────────────
                 elif node_name == "fixer":
+                    count = final_state.get("review_count", 1)
                     if current_fixer_label:
                         _finish_review_row(current_fixer_label, "done")
                         current_fixer_label = None
+                    # Prime the next reviewer row NOW so its start time is
+                    # captured accurately (reviewer runs right after fixer)
+                    next_reviewer = f"Reviewer {count + 1}"
+                    _add_review_row(next_reviewer, "running", agent_num=5)
 
                 # ── write_output ───────────────────────────────────────────────
                 elif node_name == "write_output":
@@ -246,4 +251,5 @@ def run_pipeline(
 
     cost  = get_total_cost()
     usage = get_usage_log()
+    log_step("cost_summary", cost, is_pydantic=False)  # appears in Pipeline Logs
     return final_state, {"cost": cost, "usage": usage}
