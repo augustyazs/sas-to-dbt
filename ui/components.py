@@ -431,7 +431,7 @@ def render_generated_files(project: DbtProject):
 
 def render_cost_summary(cost_data: dict):
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Cost",    f"${cost_data['cost']['total_cost_usd']:.4f}")
+    col1.metric("Total Cost",    f"${cost_data['cost']['total_cost_usd']:.2f}")
     col2.metric("Input Tokens",  f"{cost_data['cost']['total_input_tokens']:,}")
     col3.metric("Output Tokens", f"{cost_data['cost']['total_output_tokens']:,}")
     col4.metric("LLM Calls",     cost_data['cost']['calls'])
