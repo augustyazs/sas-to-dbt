@@ -142,17 +142,55 @@ def _render_generator_detail(project):
                 st.markdown(f"- {item}")
 
 
-def _render_fixer_detail(dbt_project):
-    if dbt_project is None:
-        return
+def _render_fixer_detail(final_state: dict, log_files: list):
+    review       = final_state.get("review")
+    review_count = final_state.get("review_count", 1)
+    dbt_project  = final_state.get("dbt_project")
+
+    # Fixer ran if review_count > 1 (meaning at least one fixer pass happened)
+    fixer_ran = review_count is not None and review_count > 1
+
     with st.expander("Fixer Detail", expanded=False):
-        col1, col2 = st.columns(2)
-        col1.metric("Models in project", len(dbt_project.models))
-        col2.metric("Macros in project", len(dbt_project.macros))
-        if dbt_project.not_converted:
-            st.markdown("**Not converted after fixing:**")
-            for item in dbt_project.not_converted:
-                st.markdown(f"- {item}")
+        if not fixer_ran:
+            st.info("Fixer did not run — reviewer passed on the first attempt.")
+            return
+
+        fixer_passes = review_count - 1  # one fixer pass per reviewer failure
+        st.markdown(f"**Fixer passes:** {fixer_passes}")
+
+        # Count errors that were fixed from the review object
+        if review:
+            errors   = [i for i in review.issues if i.severity == "error"]
+            warnings = [i for i in review.issues if i.severity == "warning"]
+            col1, col2 = st.columns(2)
+            col1.metric("Remaining Errors",   len(errors))
+            col2.metric("Remaining Warnings", len(warnings))
+
+        if dbt_project:
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Models in final project", len(dbt_project.models))
+            col2.metric("Macros in final project", len(dbt_project.macros))
+            col3.metric("Not converted",           len(dbt_project.not_converted))
+
+        # Show each fixer_raw log if available
+        fixer_logs = [f for f in log_files if f.stem.startswith("fixer_raw")]
+        if fixer_logs:
+            st.markdown("**Fixer pass logs:**")
+            tabs = st.tabs([f.stem for f in fixer_logs])
+            for tab, lf in zip(tabs, fixer_logs):
+                with tab:
+                    try:
+                        content = json.loads(lf.read_text(encoding="utf-8"))
+                        models_fixed = len(content.get("models", []))
+                        macros_fixed = len(content.get("macros", []))
+                        st.caption(f"Models touched: {models_fixed} | Macros touched: {macros_fixed}")
+                        not_conv = content.get("not_converted", [])
+                        if not_conv:
+                            st.markdown("**Not converted notes:**")
+                            for item in not_conv:
+                                st.markdown(f"- {item}")
+                    except Exception:
+                        st.info("Could not parse fixer log.")
 
 
 def _waiting_placeholder(label: str):
@@ -378,7 +416,7 @@ with col_main:
         pipeline_done = final_state is not None
 
         # 1. Step Details
-        with st.expander("Step Details", expanded=False):
+        with st.expander("Agents Summary", expanded=False):
             if pipeline_done and final_state.get("analysis"):
                 render_analyzer_detail(final_state["analysis"])
                 if final_state.get("resolved_mappings"):
@@ -389,8 +427,7 @@ with col_main:
                     _render_generator_detail(final_state["dbt_project"])
                 if final_state.get("review"):
                     render_review_detail(final_state["review"])
-                if final_state.get("dbt_project"):
-                    _render_fixer_detail(final_state["dbt_project"])
+                _render_fixer_detail(final_state, log_files)
             else:
                 _waiting_placeholder("Agent step details")
 

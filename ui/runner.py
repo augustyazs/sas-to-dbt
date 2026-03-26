@@ -3,18 +3,13 @@ import streamlit as st
 from models.schemas import ColumnMapping, DbtConventions
 from graph.builder import build_graph
 from tools.llm_client import get_usage_log, get_total_cost, reset_usage
-from utils.logger import reset_logs, log_step
+from utils.logger import reset_logs, write_cost_summary
 from ui.components import render_pipeline_progress
 
 
 STEP_ORDER = [
-    "analyzer",
-    "resolver",
-    "architect",
-    "generator",
-    "write_output",
-    "documenter",
-    "sttm",
+    "analyzer", "resolver", "architect", "generator",
+    "write_output", "documenter", "sttm",
 ]
 
 STEP_LABELS = {
@@ -36,7 +31,6 @@ STEP_SECTION = {
     "sttm":       "documents",
 }
 
-# Agent numbers: fixed for agents + documents; reviewer/fixer always show 5/6
 AGENT_NUMBERS = {
     "analyzer":  1,
     "resolver":  2,
@@ -73,33 +67,39 @@ def run_pipeline(
         "status":          "started",
     }
 
-    # Build initial steps — agents first, then reviewer/fixer placeholder rows,
-    # then documents. All pending to start.
+    # Build initial steps list
     steps: list[dict] = []
 
-    # Agent steps (1-4)
+    # Agent steps (1–4)
     for s in ["analyzer", "resolver", "architect", "generator"]:
         steps.append({
-            "key":        s,
-            "label":      STEP_LABELS[s],
-            "section":    "agents",
-            "agent_num":  AGENT_NUMBERS[s],
-            "status":     "pending",
-            "elapsed":    None,
+            "key":       s,
+            "label":     STEP_LABELS[s],
+            "section":   "agents",
+            "agent_num": AGENT_NUMBERS[s],
+            "status":    "pending",
+            "elapsed":   None,
         })
 
-    # Reviewer/Fixer section — starts empty but section header shows immediately.
-    # We'll append rows here dynamically as reviewer/fixer nodes fire.
+    # Reviewer 1 is always guaranteed to run — pre-seed as pending
+    steps.append({
+        "key":       "Reviewer 1",
+        "label":     "Reviewer 1",
+        "section":   "review",
+        "agent_num": 5,
+        "status":    "pending",
+        "elapsed":   None,
+    })
 
-    # Document steps (7-8)
+    # Document steps (7–8)
     for s in ["documenter", "sttm"]:
         steps.append({
-            "key":        s,
-            "label":      STEP_LABELS[s],
-            "section":    "documents",
-            "agent_num":  AGENT_NUMBERS[s],
-            "status":     "pending",
-            "elapsed":    None,
+            "key":       s,
+            "label":     STEP_LABELS[s],
+            "section":   "documents",
+            "agent_num": AGENT_NUMBERS[s],
+            "status":    "pending",
+            "elapsed":   None,
         })
 
     wo = {"status": "pending"}
@@ -137,21 +137,31 @@ def run_pipeline(
             s["elapsed"] = elapsed
         _refresh()
 
-    def _add_review_row(label: str, status: str, agent_num: int):
-        step_start_times[label] = time.perf_counter()
-        # Insert review rows BEFORE the documents section
-        insert_idx = next(
-            (i for i, s in enumerate(steps) if s["section"] == "documents"),
-            len(steps),
-        )
-        steps.insert(insert_idx, {
-            "key":       label,
-            "label":     label,
-            "section":   "review",
-            "agent_num": agent_num,
-            "status":    status,
-            "elapsed":   None,
-        })
+    def _upsert_review_row(label: str, status: str, agent_num: int):
+        """Update an existing review row, or insert a new one before documents.
+        This prevents duplicate rows regardless of call order.
+        """
+        existing = _step_by_key(label)
+        if existing:
+            # Row already exists — just update status and record start time
+            step_start_times[label] = time.perf_counter()
+            existing["status"]  = status
+            existing["elapsed"] = None
+        else:
+            # Insert before the documents section
+            step_start_times[label] = time.perf_counter()
+            insert_idx = next(
+                (i for i, s in enumerate(steps) if s["section"] == "documents"),
+                len(steps),
+            )
+            steps.insert(insert_idx, {
+                "key":       label,
+                "label":     label,
+                "section":   "review",
+                "agent_num": agent_num,
+                "status":    status,
+                "elapsed":   None,
+            })
         _refresh()
 
     def _finish_review_row(label: str, status: str):
@@ -162,9 +172,18 @@ def run_pipeline(
             s["elapsed"] = elapsed
         _refresh()
 
+    def _close_all_running_review_rows():
+        """Force-close any review rows still running (e.g. when graph skips fixer)."""
+        for step in steps:
+            if step["section"] == "review" and step["status"] == "running":
+                elapsed = time.perf_counter() - step_start_times.get(
+                    step["key"], time.perf_counter()
+                )
+                step["status"]  = "done"
+                step["elapsed"] = elapsed
+
     # ── kick off first step ────────────────────────────────────────────────────
     _set_running("analyzer")
-
     current_fixer_label: str | None = None
 
     try:
@@ -181,17 +200,17 @@ def run_pipeline(
                     passed = node_output.get("status", "") in ("complete", "complete_with_warnings")
                     label  = f"Reviewer {count}"
 
-                    if _step_by_key(label):
-                        _finish_review_row(label, "done" if passed else "error")
-                    else:
-                        _add_review_row(label, "running", agent_num=5)
-                        _finish_review_row(label, "done" if passed else "error")
+                    # Finish the existing row (always exists: pre-seeded for 1,
+                    # or created by fixer for 2+)
+                    _finish_review_row(label, "done" if passed else "error")
 
                     if not passed:
+                        # Add fixer row as running
                         fixer_label = f"Fixer {count}"
                         current_fixer_label = fixer_label
-                        _add_review_row(fixer_label, "running", agent_num=6)
+                        _upsert_review_row(fixer_label, "running", agent_num=6)
                     else:
+                        # Reviewer passed — pipeline moves to write_output
                         wo["status"] = "running"
                         _refresh()
 
@@ -201,18 +220,15 @@ def run_pipeline(
                     if current_fixer_label:
                         _finish_review_row(current_fixer_label, "done")
                         current_fixer_label = None
-                    # Prime the next reviewer row NOW so its start time is
-                    # captured accurately (reviewer runs right after fixer)
-                    next_reviewer = f"Reviewer {count + 1}"
-                    _add_review_row(next_reviewer, "running", agent_num=5)
+                    # Prime the next reviewer row with accurate start time
+                    _upsert_review_row(f"Reviewer {count + 1}", "running", agent_num=5)
 
                 # ── write_output ───────────────────────────────────────────────
                 elif node_name == "write_output":
-                    # write_output fires after reviewer/fixer loop completes.
-                    # wo bar stays "running" until sttm finishes.
+                    # Close any lingering running review rows (max-retries path)
+                    _close_all_running_review_rows()
                     wo["status"] = "running"
                     _refresh()
-                    # Documenter is next — set it running now
                     _set_running("documenter")
 
                 # ── all other fixed linear steps ───────────────────────────────
@@ -220,22 +236,21 @@ def run_pipeline(
                     errored = node_output.get("status") in ("error", "halted")
                     _set_done(node_name, errored=errored)
 
-                    # Advance next pending fixed step (agents + documents)
-                    fixed_keys = [
-                        s["key"] for s in steps
-                        if s["section"] in ("agents", "documents")
-                    ]
-                    for key in fixed_keys:
+                    # Advance next pending step — agents freely, documents only
+                    # after write_output has fired (wo no longer "pending")
+                    for key in [s["key"] for s in steps if s["section"] in ("agents", "documents")]:
                         obj = _step_by_key(key)
                         if obj and obj["status"] == "pending":
+                            if obj["section"] == "documents" and wo["status"] == "pending":
+                                break
                             _set_running(key)
                             break
 
-                    # After generator, prime Reviewer 1 as running
+                    # Generator done → activate the pre-seeded Reviewer 1
                     if node_name == "generator":
-                        _add_review_row("Reviewer 1", "running", agent_num=5)
+                        _upsert_review_row("Reviewer 1", "running", agent_num=5)
 
-                    # After sttm (last step), mark Write Output bar as done
+                    # STTM done → mark outputs as complete
                     if node_name == "sttm":
                         wo["status"] = "done"
                         _refresh()
@@ -251,5 +266,5 @@ def run_pipeline(
 
     cost  = get_total_cost()
     usage = get_usage_log()
-    log_step("cost_summary", cost, is_pydantic=False)  # appears in Pipeline Logs
+    write_cost_summary(usage, cost)
     return final_state, {"cost": cost, "usage": usage}

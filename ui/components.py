@@ -62,11 +62,12 @@ _META_COLORS = {
 
 def _section_divider(title: str) -> str:
     return (
-        '<div style="display:flex;align-items:center;gap:6px;margin:14px 0 10px 0;">'
-        '<div style="width:24px;height:1px;background:#334155;flex-shrink:0;"></div>'
+        '<div style="display:flex;align-items:center;gap:6px;'
+        'margin:14px 0 10px 0;direction:ltr;justify-content:center;">'
+        '<div style="flex:1;max-width:56px;height:1px;background:#334155;flex-shrink:0;"></div>'
         f'<span style="font-size:9px;color:#64748b;font-weight:700;'
         f'letter-spacing:0.12em;white-space:nowrap;">{title}</span>'
-        '<div style="width:24px;height:1px;background:#334155;flex-shrink:0;"></div>'
+        '<div style="flex:1;max-width:56px;height:1px;background:#334155;flex-shrink:0;"></div>'
         '</div>'
     )
 
@@ -447,4 +448,4 @@ def render_cost_summary(cost_data: dict):
             cols[0].write(entry["step"])
             cols[1].write(f"{entry['input_tokens']:,}")
             cols[2].write(f"{entry['output_tokens']:,}")
-            cols[3].write(f"${entry['cost_usd']:.4f}")
+            cols[3].write(f"${entry['cost_usd']:.2f}")
