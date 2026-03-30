@@ -43,9 +43,12 @@ def load_column_mapping(path: Path) -> list[ColumnMapping]:
     raise ValueError(f"Unsupported mapping format: {path.suffix}")
 
 
+
 def load_conventions(path: Path) -> DbtConventions:
-    """Load dbt conventions from JSON. Returns defaults if file missing."""
+    """Load dbt conventions from JSON. Returns defaults if file missing or empty."""
     if path.exists():
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        return DbtConventions(**raw)
+        text = path.read_text(encoding="utf-8").strip()
+        if text:
+            raw = json.loads(text)
+            return DbtConventions(**raw)
     return DbtConventions()
