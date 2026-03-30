@@ -49,6 +49,8 @@ def get_total_cost() -> dict:
 
 
 def _resolve_model(step_name: str) -> str:
+    if step_name == "scout":
+        return OPENAI_MODEL_SCOUT
     if step_name == "analyzer":
         return OPENAI_MODEL_ANALYZER
     elif step_name == "documenter_agent":

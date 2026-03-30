@@ -1,3 +1,6 @@
+
+# ── config/settings.py ───────────────────────────────────────────────────────
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -9,6 +12,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # ── Per-agent model routing ───────────────────────────────────────────────────
 OPENAI_MODEL            = os.getenv("OPENAI_MODEL",            "gpt-5")
+OPENAI_MODEL_SCOUT      = os.getenv("OPENAI_MODEL_SCOUT",       "gpt-4.1")   # fast, runs first
 OPENAI_MODEL_ANALYZER   = os.getenv("OPENAI_MODEL_ANALYZER",   "gpt-5")
 OPENAI_MODEL_DOCUMENTER = os.getenv("OPENAI_MODEL_DOCUMENTER",  "gpt-4.1")
 OPENAI_MODEL_STTM       = os.getenv("OPENAI_MODEL_STTM",        "gpt-4.1")
@@ -27,7 +31,24 @@ LOGS_DIR       = BASE_DIR / "logs"
 
 SAS_SCRIPTS_DIR      = INPUTS_DIR / "sas_scripts"
 COLUMN_MAPPING_PATH  = INPUTS_DIR / "column_mapping.json"
-DBT_CONVENTIONS_PATH = INPUTS_DIR / "dbt_conventions.json"
+DBT_CONVENTIONS_PATH = INPUTS_DIR / "dbt_conventions.json"   # legacy — still read for dbt defaults
 
 INPUT_COST_PER_M  = 1.25
 OUTPUT_COST_PER_M = 10.0
+
+# Supported target platforms
+SUPPORTED_TARGETS = {"dbt", "pyspark", "scala", "sql"}
+
+
+# ── tools/llm_client.py — add scout to _resolve_model ────────────────────────
+# (only the _resolve_model function needs updating; rest of the file unchanged)
+
+def _resolve_model_patch():
+    """
+    Patch for tools/llm_client.py _resolve_model function.
+    Add this elif before the final else:
+
+        elif step_name == "scout":
+            return OPENAI_MODEL_SCOUT
+    """
+    pass  # This is a note — apply the change directly in tools/llm_client.py
