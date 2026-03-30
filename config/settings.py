@@ -12,7 +12,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # ── Per-agent model routing ───────────────────────────────────────────────────
 OPENAI_MODEL            = os.getenv("OPENAI_MODEL",            "gpt-5")
-OPENAI_MODEL_SCOUT      = os.getenv("OPENAI_MODEL_SCOUT",       "gpt-4.1")   # fast, runs first
+OPENAI_MODEL_SCOUT      = os.getenv("OPENAI_MODEL_SCOUT",      "gpt-4.1")
 OPENAI_MODEL_ANALYZER   = os.getenv("OPENAI_MODEL_ANALYZER",   "gpt-5")
 OPENAI_MODEL_DOCUMENTER = os.getenv("OPENAI_MODEL_DOCUMENTER",  "gpt-4.1")
 OPENAI_MODEL_STTM       = os.getenv("OPENAI_MODEL_STTM",        "gpt-4.1")
