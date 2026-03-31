@@ -38,6 +38,11 @@ class GraphState(TypedDict, total=False):
     status:              str
     error:               str
 
+    # ── Runtime paths (set by main.py, per script) ───────────────────────────
+    outputs_dir:         str
+    doc_output_dir:      str
+    logs_dir:            str
+
     # ── Documentation outputs ─────────────────────────────────────────────────
     sas_documentation:   str
     sttm_data:           dict

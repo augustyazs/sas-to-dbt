@@ -1,7 +1,5 @@
-
-# ── graph/builder.py ──────────────────────────────────────────────────────────
-
 from langgraph.graph import StateGraph, END
+from pathlib import Path
 from state.graph_state import GraphState
 from agents.scout import scout_node
 from agents.analyzer import analyzer_node
@@ -20,13 +18,13 @@ from graph.conditions import (
 )
 from utils.dbt_writer import write_dbt_project
 from utils.logger import log_step
-from config.settings import OUTPUTS_DIR
 
 
 def write_output_node(state: GraphState) -> dict:
     print("\n[WRITE] Writing project to disk...")
-    project = state["dbt_project"]
-    written = write_dbt_project(project, OUTPUTS_DIR)
+    project     = state["dbt_project"]
+    outputs_dir = Path(state.get("outputs_dir", "outputs/project"))
+    written     = write_dbt_project(project, outputs_dir)
     for f in written:
         print(f"  ✓ {f}")
     return {"status": "done"}

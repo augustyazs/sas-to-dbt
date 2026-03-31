@@ -43,10 +43,11 @@ def write_dbt_project(project: DbtProject, output_dir: Path) -> list[str]:
     return written
 
 
+
 def write_sas_documentation(documentation: str, output_dir: Path) -> str:
-    """Write SAS source documentation as a Markdown file."""
+    """Write pipeline documentation as documentation.md (was sas_documentation.md)."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    fp = output_dir / "sas_documentation.md"
+    fp = output_dir / "documentation.md"
     fp.write_text(documentation, encoding="utf-8")
     return str(fp)
 

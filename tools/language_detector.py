@@ -4,18 +4,24 @@ from pathlib import Path
 
 EXTENSION_MAP = {
     ".sas":   "SAS",
-    ".py":    "PySpark",   # refine to Python vs PySpark via signals below
+    ".py":    "PySpark",   # refined to Python vs PySpark via signals below
     ".r":     "R",
     ".scala": "Scala",
-    ".sql":   "SQL",
+    ".pls":   "PL/SQL",   # Oracle package spec/body
+    ".pkb":   "PL/SQL",   # Oracle package body
+    ".pks":   "PL/SQL",   # Oracle package spec
+    ".prc":   "PL/SQL",   # Oracle stored procedure
+    ".fnc":   "PL/SQL",   # Oracle function
+    ".trg":   "PL/SQL",   # Oracle trigger
+    # .sql intentionally excluded — too ambiguous (ANSI SQL vs PL/SQL vs T-SQL)
 }
 
 # Signal patterns per language — need 2+ hits to confirm
 SIGNAL_MAP = {
     "SAS":     [r'\bdata\s+\w+\s*;', r'\bproc\s+sql\b', r'%macro\b',
                 r'\blibname\b', r'\brun\s*;', r'\bquit\s*;'],
-    "PySpark": [r'\bSparkSession\b', r'spark\.read', r'\.withColumnRenamed',
-                r'\bpyspark\b', r'from\s+pyspark', r'\.toDF\b'],
+    # "PySpark": [r'\bSparkSession\b', r'spark\.read', r'\.withColumnRenamed',
+    #             r'\bpyspark\b', r'from\s+pyspark', r'\.toDF\b'],
     "Python":  [r'\bpd\.read', r'\bpandas\b', r'import\s+pandas',
                 r'sqlalchemy', r'def\s+\w+\s*\('],
     "Scala":   [r'\bval\s+\w+\s*:', r'SparkSession\.builder',

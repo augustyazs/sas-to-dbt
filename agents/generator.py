@@ -6,6 +6,20 @@ from config.prompts import GENERATOR_SYSTEM, GENERATOR_USER
 from utils.logger import log_step
 
 
+def _merge_models(models: list[dict], target_platform: str) -> str:
+    """
+    Merge multiple generated files into one self-contained script.
+    Preserves all content with section headers so nothing is lost.
+    """
+    sections = []
+    for m in models:
+        path    = m.get("path", "unknown")
+        content = m.get("content", "").strip()
+        header  = f"# {'=' * 60}\n# {path}\n# {'=' * 60}"
+        sections.append(f"{header}\n\n{content}")
+    return "\n\n\n".join(sections)
+
+
 def generator_node(state: GraphState) -> dict:
     """Generate target platform output from analysis, resolved mappings, and migration plan."""
     target_platform = state.get("target_platform", "dbt")
@@ -48,6 +62,18 @@ def generator_node(state: GraphState) -> dict:
 
     result["models"] = _sanitize(result.get("models", []), "models")
     result["macros"] = _sanitize(result.get("macros", []), "macros")
+
+    # ── Non-dbt: collapse to single file ─────────────────────────────────────
+    # For PySpark/Scala/SQL the generator sometimes still produces multiple
+    # staged files despite the prompt. Merge them into one file here.
+    if target_platform != "dbt" and len(result["models"]) > 1:
+        print(f"  Collapsing {len(result['models'])} files into single output file...")
+        script_stem = state.get("source_filename", "output").rsplit(".", 1)[0]
+        merged_content = _merge_models(result["models"], target_platform)
+        result["models"] = [{
+            "path":    f"src/{script_stem}.py" if target_platform == "pyspark" else f"src/{script_stem}.scala" if target_platform == "scala" else f"sql/{script_stem}.sql",
+            "content": merged_content,
+        }]
 
     # Ensure required DbtProject fields exist (may be empty for non-dbt targets)
     result.setdefault("dbt_project_yml", "")
