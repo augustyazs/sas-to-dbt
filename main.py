@@ -14,7 +14,8 @@ from graph.builder import build_graph
 
 
 SUPPORTED_EXTENSIONS = [".sas", ".txt", ".py", ".scala", ".r", ".sql",
-                        ".pls", ".pkb", ".pks", ".prc", ".fnc", ".trg"]
+                        ".pls", ".pkb", ".pks", ".prc", ".fnc", ".trg",
+                        ".xml"]   # Informatica PowerCenter/PowerMart mappings
 
 
 def prompt_target_platform() -> str:

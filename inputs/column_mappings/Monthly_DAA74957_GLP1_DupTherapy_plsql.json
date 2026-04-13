@@ -1,0 +1,298 @@
+[
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "MEMBER_ID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "MEMBER_ID"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "LOB",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LOB"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DATE_FILLED",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "DATE_FILLED"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "CLAIM_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "CLAIM_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "LOB2",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LOB2"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "LOB3",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LOB3"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DRUG_NDC",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "NDC"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DRUG_LABEL_NAME",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LABEL_NAME"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DRUG_BRAND_NAME",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "BRAND_NAME"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "RX_COUNT",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "RXS"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "CLAIM_PLAN_DAYS_SUPPLY",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "DAYS"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "CLAIM_PLAN_MET_DEC_QTY",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "QTY"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_PLAN_ING_COST",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "ING_COST"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_PLAN_DISP_FEE",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "DISP_FEE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_TOTAL_COST",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "ALLOWED"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_MEMBER_COPAY",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "COPAY"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_MEMBER_DED_COST",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "DEDUCT"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_MEMBER_LIAB",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "MBR_COST"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_PLAN_PAID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "PLAN_PAID"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "GENERIC_PRODUCT_ID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "GPI10"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "GENERIC_PRODUCT_ID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "GPI12"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "GENERIC_PRODUCT_ID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "GPI14"
+  },
+  {
+    "source_schema": "A",
+    "source_table": "R12_DIAB_DRUGS",
+    "source_column": "GPI12",
+    "target_schema": "WORK",
+    "target_table": "DRUG_TYPE",
+    "target_column": "GPI12"
+  },
+  {
+    "source_schema": "A",
+    "source_table": "R12_DIAB_DRUGS",
+    "source_column": "Drug Type 1",
+    "target_schema": "WORK",
+    "target_table": "DRUG_TYPE",
+    "target_column": "drug_type1"
+  },
+  {
+    "source_schema": "A",
+    "source_table": "R12_DIAB_DRUGS",
+    "source_column": "Drug Type2",
+    "target_schema": "WORK",
+    "target_table": "DRUG_TYPE",
+    "target_column": "drug_type2"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "MEMBER_ID",
+    "target_schema": "WORK",
+    "target_table": "MBR_SUM",
+    "target_column": "MEMBER_ID"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "LOB",
+    "target_schema": "WORK",
+    "target_table": "MBR_SUM",
+    "target_column": "LOB"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "DATE_FILLED",
+    "target_schema": "WORK",
+    "target_table": "MBR_SUM",
+    "target_column": "MAX_FILL"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "drug_type1/drug_type2",
+    "target_schema": "WORK",
+    "target_table": "MBR_SUM",
+    "target_column": "DM_ONLY / DM_W_WL / WL_ONLY / UTIL / THER"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "MEMBER_ID",
+    "target_schema": "WORK",
+    "target_table": "MBR_GLP",
+    "target_column": "MEMBER_ID"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "drug_type1",
+    "target_schema": "WORK",
+    "target_table": "MBR_GLP",
+    "target_column": "drug_type1"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "RXS",
+    "target_schema": "WORK",
+    "target_table": "MBR_GLP",
+    "target_column": "RXS"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "MEMBER_ID",
+    "target_schema": "WORK",
+    "target_table": "CLMS_CONCUR",
+    "target_column": "MEMBER_ID"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "DATE_FILLED",
+    "target_schema": "WORK",
+    "target_table": "CLMS_CONCUR",
+    "target_column": "DATE_FILLED"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "DAYS",
+    "target_schema": "WORK",
+    "target_table": "CLMS_CONCUR",
+    "target_column": "DAYS"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "ALLOWED",
+    "target_schema": "WORK",
+    "target_table": "CLM_RPTOUT",
+    "target_column": "ALLOWED"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "PLAN_PAID",
+    "target_schema": "WORK",
+    "target_table": "CLM_RPTOUT",
+    "target_column": "PLAN_PAID"
+  }
+]

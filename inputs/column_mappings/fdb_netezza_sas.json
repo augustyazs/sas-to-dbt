@@ -1,0 +1,82 @@
+[
+  {
+    "source_schema": "RNDC14_NDC_MSTR",
+    "source_table": "RNDC14_NDC_MSTR",
+    "source_column": "NDC",
+    "target_schema": "WORK",
+    "target_table": "FDB_NETEZZA",
+    "target_column": "NDC"
+  },
+  {
+    "source_schema": "RMINDC1_NDC_MEDID",
+    "source_table": "RMINDC1_NDC_MEDID",
+    "source_column": "NDC",
+    "target_schema": "WORK",
+    "target_table": "FDB_NETEZZA",
+    "target_column": "NDC enrichment"
+  },
+  {
+    "source_schema": "RMINDC1_NDC_MEDID",
+    "source_table": "RMINDC1_NDC_MEDID",
+    "source_column": "MEDID",
+    "target_schema": "WORK",
+    "target_table": "MEDID",
+    "target_column": "MEDID"
+  },
+  {
+    "source_schema": "RMIID1_MED",
+    "source_table": "RMIID1_MED",
+    "source_column": "MEDID",
+    "target_schema": "WORK",
+    "target_table": "MEDID_DESC",
+    "target_column": "MEDID"
+  },
+  {
+    "source_schema": "RNP2_NDC_PRICE",
+    "source_table": "RNP2_NDC_PRICE",
+    "source_column": "NPT_PRICEX",
+    "target_schema": "WORK",
+    "target_table": "FDB_NADAC",
+    "target_column": "NPT_PRICEX"
+  },
+  {
+    "source_schema": "RNP2_NDC_PRICE",
+    "source_table": "RNP2_NDC_PRICE",
+    "source_column": "NPT_DATEC",
+    "target_schema": "WORK",
+    "target_table": "FDB_NADAC",
+    "target_column": "NPT_DATEC"
+  },
+  {
+    "source_schema": "RNP2_NDC_PRICE",
+    "source_table": "RNP2_NDC_PRICE",
+    "source_column": "NPT_TYPE",
+    "target_schema": "WORK",
+    "target_table": "FDB_NADAC",
+    "target_column": "NADAC_TYPE / price_type"
+  },
+  {
+    "source_schema": "RNDCAT0_NDC_ATTRIBUTE",
+    "source_table": "RNDCAT0_NDC_ATTRIBUTE",
+    "source_column": "NDC_ATTRIBUTE_VALUE",
+    "target_schema": "WORK",
+    "target_table": "FDB_NETEZZA",
+    "target_column": "BLA_DATE / COD58 / COD59"
+  },
+  {
+    "source_schema": "RATCGC0_ATC_GCNSEQNO_LINK",
+    "source_table": "RATCGC0_ATC_GCNSEQNO_LINK",
+    "source_column": "ATC",
+    "target_schema": "WORK",
+    "target_table": "FDB_NETEZZA",
+    "target_column": "ATC"
+  },
+  {
+    "source_schema": "RAHFSGC1_GCNSEQNO_LINK",
+    "source_table": "RAHFSGC1_GCNSEQNO_LINK",
+    "source_column": "AHFS8",
+    "target_schema": "WORK",
+    "target_table": "FDB_NETEZZA",
+    "target_column": "AHFS8"
+  }
+]

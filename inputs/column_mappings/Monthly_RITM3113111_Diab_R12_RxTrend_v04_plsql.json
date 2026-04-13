@@ -1,0 +1,170 @@
+[
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "MAP_COA",
+    "source_column": "COA",
+    "target_schema": "WORK",
+    "target_table": "COA_FI / COA_ASO",
+    "target_column": "COA"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "LOB",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LOB"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "LOB2",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LOB2"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "LOB3",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "LOB3"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "COA",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "FI_IND / UW_IND"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "GPI2_DRUG_GROUP",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "GPI2_DRUG_GROUP"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "GPI4",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "GPI4"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DRUG_NDC",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "NDC"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DRUG_BRAND_NAME",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "BRAND"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "GENERIC_PRODUCT_ID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "GPI14"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DRUG_GENERIC_NAME",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "DRUG_GENERIC_NAME"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "MEMBER_ID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "MEMBER_ID"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "DATE_FILLED",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "YRMO / YR / WEEK_OF / DATE_FILLED"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "CLAIM_PLAN_DAYS_SUPPLY",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "DAYS / RX_NORM"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "RX_COUNT",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "RX"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_MEMBER_LIAB",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "MBR_COST"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_PLAN_PAID",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "PAID"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_TOTAL_COST",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "AMT_TOTAL_COST"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "CLAIM_DETAIL_PAID",
+    "source_column": "AMT_PLAN_DISP_FEE + AMT_PLAN_ING_COST",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "ALLW"
+  },
+  {
+    "source_schema": "A",
+    "source_table": "R12_DIAB_DRUGS",
+    "source_column": "NDC",
+    "target_schema": "WORK",
+    "target_table": "RAWDATA",
+    "target_column": "drug_type1 / drug_type2 classification"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "RAWDATA",
+    "source_column": "LOB / LOB2 / LOB3 / FI_IND / UW_IND / drug_type1 / drug_type2 / YRMO / YR / WEEK_OF / RX / RX_NORM / DAYS / ALLW / MBR_COST / PAID",
+    "target_schema": "WORK",
+    "target_table": "R12_CLM / R12_MM / RPTOUT / R12_CLM_RPT / R12_REPORT",
+    "target_column": "summary metrics"
+  }
+]

@@ -1,0 +1,314 @@
+[
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "COMMENTS",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "COMMENTS"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "LOB",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "LOB"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "LOB2",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "LOB2"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "RECEIVED_DATE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "RECEIVED_DATE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "EFFECTUATION__DATE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "EFFECTUATION__DATE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "REQUEST_TYPE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "REQUEST_TYPE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "INTAKE_TYPE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "INTAKE_TYPE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "MEMBER_ID",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "MEMBER_ID"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "PERSON_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "PERSON_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "MEMBER_FIRST_NAME",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "MEMBER_FIRST_NAME"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "MEMBER_LAST_NAME",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "MEMBER_LAST_NAME"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "MEMBER_DATE_OF_BIRTH",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "MEMBER_DATE_OF_BIRTH"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "AUTHORIZATION_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "AUTHORIZATION_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "NDC_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "NDC_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "LABEL_NAME",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "LABEL_NAME"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CASE_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CASE_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CASE_STATUS",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CASE_STATUS"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "STATUS_REASON_DESCRIPTION",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "STATUS_REASON_DESCRIPTION"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "REQUEST_REASON_DESCRIPTION",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "REQUEST_REASON_DESCRIPTION"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "MODC_CODE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "MODC_CODE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "COVERAGE_CODE_1",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "COVERAGE_CODE_1"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "COVERAGE_CODE_2",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "COVERAGE_CODE_2"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "ATTRIBUTE_6",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "ATTRIBUTE_6"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "ATTRIBUTE_7",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "ATTRIBUTE_7"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CVS_CARRIER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CVS_CARRIER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CVS_ACCOUNT",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CVS_ACCOUNT"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CVS_GRP",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CVS_GRP"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CUSTOMER_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CUSTOMER_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "CLIENT_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "CLIENT_NUMBER"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "GROUP_CODE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "GROUP_CODE"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "FORMULARY",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "FORMULARY"
+  },
+  {
+    "source_schema": "RX_DATA",
+    "source_table": "AUTHACCEL",
+    "source_column": "SOURCE_FILE",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "SOURCE_FILE"
+  },
+  {
+    "source_schema": "A",
+    "source_table": "R12_DIAB_DRUGS",
+    "source_column": "NDC",
+    "target_schema": "WORK",
+    "target_table": "ACCEL_TBL",
+    "target_column": "drug_type1 / drug_type2 classification"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "ACCEL_TBL",
+    "source_column": "COMMENTS",
+    "target_schema": "WORK",
+    "target_table": "BMI_TMP",
+    "target_column": "BMI_FNL"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "ACCEL_TBL",
+    "source_column": "COMMENTS",
+    "target_schema": "WORK",
+    "target_table": "BMI_TMP",
+    "target_column": "CO_MORBID"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "BMI_TMP",
+    "source_column": "BMI_FNL",
+    "target_schema": "WORK",
+    "target_table": "BMI_TMP",
+    "target_column": "OBESE"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "BMI_TMP",
+    "source_column": "BMI_FNL + CO_MORBID",
+    "target_schema": "WORK",
+    "target_table": "BMI_TMP",
+    "target_column": "OVERWT_COMORBID"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "BMI_TMP",
+    "source_column": "CASE_STATUS",
+    "target_schema": "WORK",
+    "target_table": "RPTOUT_SUM",
+    "target_column": "APPRVD_CNT"
+  },
+  {
+    "source_schema": "WORK",
+    "source_table": "BMI_TMP",
+    "source_column": "CASE_NUMBER",
+    "target_schema": "WORK",
+    "target_table": "RPTOUT_SUM",
+    "target_column": "CNT"
+  }
+]

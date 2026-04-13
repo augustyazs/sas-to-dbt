@@ -7,21 +7,22 @@ EXTENSION_MAP = {
     ".py":    "PySpark",   # refined to Python vs PySpark via signals below
     ".r":     "R",
     ".scala": "Scala",
-    ".pls":   "PL/SQL",   # Oracle package spec/body
-    ".pkb":   "PL/SQL",   # Oracle package body
-    ".pks":   "PL/SQL",   # Oracle package spec
-    ".prc":   "PL/SQL",   # Oracle stored procedure
-    ".fnc":   "PL/SQL",   # Oracle function
-    ".trg":   "PL/SQL",   # Oracle trigger
+    ".xml":   "Informatica",  # confirmed via content check below
     # .sql intentionally excluded — too ambiguous (ANSI SQL vs PL/SQL vs T-SQL)
+    ".pls":   "PL/SQL",
+    ".pkb":   "PL/SQL",
+    ".pks":   "PL/SQL",
+    ".prc":   "PL/SQL",
+    ".fnc":   "PL/SQL",
+    ".trg":   "PL/SQL",
 }
 
 # Signal patterns per language — need 2+ hits to confirm
 SIGNAL_MAP = {
     "SAS":     [r'\bdata\s+\w+\s*;', r'\bproc\s+sql\b', r'%macro\b',
                 r'\blibname\b', r'\brun\s*;', r'\bquit\s*;'],
-    # "PySpark": [r'\bSparkSession\b', r'spark\.read', r'\.withColumnRenamed',
-    #             r'\bpyspark\b', r'from\s+pyspark', r'\.toDF\b'],
+    "PySpark": [r'\bSparkSession\b', r'spark\.read', r'\.withColumnRenamed',
+                r'\bpyspark\b', r'from\s+pyspark', r'\.toDF\b'],
     "Python":  [r'\bpd\.read', r'\bpandas\b', r'import\s+pandas',
                 r'sqlalchemy', r'def\s+\w+\s*\('],
     "Scala":   [r'\bval\s+\w+\s*:', r'SparkSession\.builder',
@@ -46,14 +47,18 @@ def detect_language(path: Path, content: str) -> str | None:
     """
     ext = path.suffix.lower() if path else ""
 
-    # Step 1: extension match (skip .txt — needs content inspection)
-    if ext in EXTENSION_MAP and ext != ".txt":
+    # Step 1: extension match (skip .txt and .sql — need content inspection)
+    if ext in EXTENSION_MAP and ext not in (".txt", ".sql"):
         base_lang = EXTENSION_MAP[ext]
-        # For .py, disambiguate Python vs PySpark via signals
+        # .py: disambiguate Python vs PySpark via signals
         if ext == ".py":
             spark_hits = sum(1 for p in SIGNAL_MAP["PySpark"]
                              if re.search(p, content[:8000], re.IGNORECASE))
             return "PySpark" if spark_hits >= 2 else "Python"
+        # .xml: confirm it's Informatica via content check
+        if ext == ".xml":
+            from tools.informatica_parser import is_informatica_xml
+            return "Informatica" if is_informatica_xml(path) else None
         return base_lang
 
     # Step 2: score all languages by signal hits

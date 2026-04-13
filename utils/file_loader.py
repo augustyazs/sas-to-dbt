@@ -13,7 +13,20 @@ def write_documentation(documentation: str, output_dir: Path) -> str:
 
 
 def load_source_script(path: Path) -> str:
-    """Read source script, trying multiple encodings."""
+    """
+    Read source script. Handles Informatica XML specially —
+    parses and converts to plain-text representation before returning.
+    All other formats read as plain text with encoding fallback.
+    """
+    # Informatica XML — parse and convert to readable text
+    if path.suffix.lower() == ".xml":
+        from tools.informatica_parser import parse_informatica_xml, is_informatica_xml
+        if is_informatica_xml(path):
+            return parse_informatica_xml(path)
+        # XML but not Informatica — read as plain text and let Scout/Analyzer decide
+        return path.read_text(encoding="utf-8", errors="replace")
+
+    # All other formats — plain text with encoding fallback
     for enc in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
         try:
             text = path.read_text(encoding=enc)
@@ -28,6 +41,16 @@ def load_column_mapping(path: Path) -> list[ColumnMapping]:
     """Load column mapping from JSON or CSV."""
     if path.suffix == ".json":
         raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            raise ValueError(f"Column mapping {path.name} must be a JSON array, got {type(raw).__name__}")
+        if not raw:
+            return []
+        if not isinstance(raw[0], dict):
+            raise ValueError(
+                f"Column mapping {path.name} contains {type(raw[0]).__name__} entries — "
+                f"expected objects with source_schema, source_table, source_column, "
+                f"target_schema, target_table, target_column keys."
+            )
         return [ColumnMapping(**entry) for entry in raw]
     elif path.suffix == ".csv":
         with open(path, newline="", encoding="utf-8") as f:
